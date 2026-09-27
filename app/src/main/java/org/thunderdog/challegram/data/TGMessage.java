@@ -5198,7 +5198,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       setChatData(chat, messageThread);
     }
     long lastReadMessageId;
-    if (messageThread != null) {
+    ForumTopicContext forum = messagesController().getForumTopicContext();
+    if (forum != null) {
+      lastReadMessageId = msg.isOutgoing ? forum.lastReadOutbox() : forum.lastReadInbox();
+    } else if (messageThread != null) {
       lastReadMessageId = msg.isOutgoing ? messageThread.getLastReadOutboxMessageId() : messageThread.getLastReadInboxMessageId();
     } else if (chat != null) {
       lastReadMessageId = msg.isOutgoing ? chat.lastReadOutboxMessageId : chat.lastReadInboxMessageId;
@@ -5365,7 +5368,8 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     this.flags = flags;
 
     if (isOutgoing() && !isSending()) {
-      setUnread(messageThread != null ? messageThread.getLastReadOutboxMessageId() : chat.lastReadOutboxMessageId);
+      ForumTopicContext forum = messagesController().getForumTopicContext();
+      setUnread(forum != null ? forum.lastReadOutbox() : messageThread != null ? messageThread.getLastReadOutboxMessageId() : chat.lastReadOutboxMessageId);
     }
 
     /*if (replyData != null && TD.isMultiChat(chat)) {

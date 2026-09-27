@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+  <string name="ForumTopicTitle">Topic</string>
+  <string name="ForumTopicLoading">Loading topic…</string>
+  <string name="ForumTopicClosed">Topic closed</string>
+  <string name="ForumTopicUnavailable">Topic unavailable. Tap to retry</string>
+  <string name="ForumTopicLoadFailed">Could not load topic. Tap to retry</string>
   <string name="language_continueInLanguage">Continue in English</string>
 
   <string name="Page1Title">Telegram X</string>

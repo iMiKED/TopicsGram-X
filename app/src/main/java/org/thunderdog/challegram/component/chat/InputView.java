@@ -1191,13 +1191,12 @@ public class InputView extends NoClipEditText implements InlineSearchContext.Cal
 
   private boolean textChangedSinceChatOpened;
 
-  public void setChat (TdApi.Chat chat, @Nullable ThreadInfo messageThread, @Nullable TdApi.DraftMessageContent forceDraft, @Nullable String customInputField, boolean isSilent) {
+  public void setChat (TdApi.Chat chat, @Nullable ThreadInfo messageThread, @Nullable TdApi.DraftMessageContent draft, @Nullable String customInputField, boolean isSilent) {
     textChangedSinceChatOpened = false;
     updateMessageHint(chat, messageThread, customInputField, isSilent);
-    setDraft(forceDraft != null ? forceDraft : !tdlib.canSendBasicMessage(chat) ? null :
-      messageThread != null ? messageThread.getDraftContent() :
-      chat.draftMessage != null ? chat.draftMessage.content : null
-    );
+    // The controller resolves the draft. Null explicitly means an empty draft,
+    // including a forum topic with no draft in a group that has one.
+    setDraft(draft);
   }
 
   public boolean isEmpty () {
@@ -1526,7 +1525,7 @@ public class InputView extends NoClipEditText implements InlineSearchContext.Cal
       return null;
     final InputConnectionCompat.OnCommitContentListener callback =
       (inputContentInfo, flags, bundle) -> {
-        if (controller == null)
+        if (controller == null || controller.showForumTopicRestriction(this))
           return false;
 
         final long chatId = controller.getChatId();
@@ -1607,7 +1606,7 @@ public class InputView extends NoClipEditText implements InlineSearchContext.Cal
           }
 
           UI.post(() -> {
-            if (controller.showRestriction(this, tdlib.getRestrictionText(chat, content))) {
+            if (!controller.compareChat(chatId, topicId) || controller.showForumTopicRestriction(this) || controller.showRestriction(this, tdlib.getRestrictionText(chat, content))) {
               return;
             }
             if (needMenu) {

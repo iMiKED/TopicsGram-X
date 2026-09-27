@@ -147,6 +147,11 @@ import org.thunderdog.challegram.data.TGSwitchInline;
 import org.thunderdog.challegram.data.TGUser;
 import org.thunderdog.challegram.data.ThreadInfo;
 import org.thunderdog.challegram.data.MessageTopics;
+import org.thunderdog.challegram.data.ForumHistory;
+import org.thunderdog.challegram.data.ForumTopicContext;
+import org.thunderdog.challegram.telegram.ForumTopicStore;
+import org.thunderdog.challegram.telegram.CleanupStartupDelegate;
+import org.thunderdog.challegram.telegram.TdlibForumTopicManager;
 import org.thunderdog.challegram.filegen.PhotoGenerationInfo;
 import org.thunderdog.challegram.filegen.VideoGenerationInfo;
 import org.thunderdog.challegram.helper.BotHelper;
@@ -299,7 +304,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   ActivityResultHandler, MoreDelegate, CommandKeyboardLayout.Callback, MediaCollectorDelegate, SelectDelegate,
   ReplyBarView.Callback, RaiseHelper.Listener,
   TGLegacyManager.EmojiLoadListener, ChatHeaderView.Callback,
-  ChatListener, NotificationSettingsListener, EmojiLayout.Listener,
+  ChatListener, NotificationSettingsListener, EmojiLayout.Listener, CleanupStartupDelegate,
   MessageThreadListener, TdlibSingleUnreadReactionsManager.UnreadSingleReactionListener,
   TdlibCache.SupergroupDataChangeListener, TdlibCache.BasicGroupDataChangeListener, TdlibCache.SecretChatDataChangeListener,
   TdlibCache.UserDataChangeListener,
@@ -384,6 +389,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public MessagesController (Context context, Tdlib tdlib) {
     super(context, tdlib);
     this.manager = new MessagesManager(this);
+    tdlib.listeners().addCleanupListener(this);
   }
 
   @Override
@@ -914,7 +920,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       @Override
       public void onShowAllRequest (PinnedMessagesBar view) {
         MessagesController c = new MessagesController(context, tdlib);
-        c.setArguments(new Arguments(null, chat, null, null, new TdApi.SearchMessagesFilterPinned()));
+        c.setArguments(new Arguments(null, chat, getMessageTopicId(), null, null, new TdApi.SearchMessagesFilterPinned()));
         navigateTo(c);
       }
     });
@@ -1805,10 +1811,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   @Nullable
   public final TdApi.MessageTopic getMessageTopicId (ReplyInfo replyInfo) {
-    if (replyInfo != null && replyInfo.inTopicId != null) {
-      return replyInfo.inTopicId;
-    }
-    return getMessageTopicId();
+    return ForumHistory.outgoingTopic(getMessageTopicId(), replyInfo != null ? replyInfo.inTopicId : null);
   }
 
   private boolean matchesTopic (@Nullable TdApi.MessageTopic topicId) {
@@ -1828,6 +1831,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   @Nullable
   public TdApi.DraftMessage getDraftMessage () {
+    if (forumTopicContext != null) return forumTopicContext.draft();
     return messageThread != null ? messageThread.getDraft() : chat != null ? chat.draftMessage : null;
   }
 
@@ -1981,7 +1985,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public void viewScheduledMessages (boolean force) {
     MessagesController c = new MessagesController(context, tdlib);
     boolean keyboardVisible = getKeyboardState();
-    c.setArguments(new Arguments(openedFromChatList, chat, /* messageThread */ null, null, null, MessagesManager.HIGHLIGHT_MODE_NONE, null).setScheduled(true).setOpenKeyboard(keyboardVisible));
+    c.setArguments(new Arguments(openedFromChatList, chat, /* messageThread */ null, getMessageTopicId(), null, MessagesManager.HIGHLIGHT_MODE_NONE, null).setScheduled(true).setOpenKeyboard(keyboardVisible));
     if (force) {
       c.forceFastAnimationOnce();
     }
@@ -2381,7 +2385,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       case 3: {
         String query = in.getString(keyPrefix + "query", null);
         TdApi.MessageSender sender = Td.restoreMessageSender(in, keyPrefix + "sender_");
-        args = new Arguments(chatList, chat, query, sender, filter);
+        args = new Arguments(chatList, chat, topicId, query, sender, filter);
         break;
       }
       case 4: {
@@ -2390,7 +2394,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         int highlightMode = in.getInt(keyPrefix + "mode", 0);
         long highlightMessageId = in.getLong(keyPrefix + "message_id", 0);
         long highlightMessageChatId = in.getLong(keyPrefix + "message_chat_id", 0);
-        args = new Arguments(chatList, chat, query, sender, filter, highlightMessageId != 0 ? new MessageId(highlightMessageChatId, highlightMessageId) : null, highlightMode);
+        args = new Arguments(chatList, chat, topicId, query, sender, filter, highlightMessageId != 0 ? new MessageId(highlightMessageChatId, highlightMessageId) : null, highlightMode);
         break;
       }
     }
@@ -2474,11 +2478,15 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
 
     public Arguments (TdApi.ChatList chatList, TdApi.Chat chat, @Nullable String query, @Nullable TdApi.MessageSender sender, @Nullable TdApi.SearchMessagesFilter filter) {
+      this(chatList, chat, null, query, sender, filter);
+    }
+
+    public Arguments (TdApi.ChatList chatList, TdApi.Chat chat, @Nullable TdApi.MessageTopic topicId, @Nullable String query, @Nullable TdApi.MessageSender sender, @Nullable TdApi.SearchMessagesFilter filter) {
       this.constructor = 3;
       this.chat = chat;
       this.chatList = chatList;
       this.messageThread = null;
-      this.messageTopicId = null;
+      this.messageTopicId = topicId;
       this.searchQuery = query;
       this.searchSender = sender;
       this.searchFilter = filter;
@@ -2490,11 +2498,15 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
 
     public Arguments (TdApi.ChatList chatList, TdApi.Chat chat, @Nullable String query, @Nullable TdApi.MessageSender sender, @Nullable TdApi.SearchMessagesFilter filter,  MessageId highlightMessageId, int highlightMode) {
+      this(chatList, chat, null, query, sender, filter, highlightMessageId, highlightMode);
+    }
+
+    public Arguments (TdApi.ChatList chatList, TdApi.Chat chat, @Nullable TdApi.MessageTopic topicId, @Nullable String query, @Nullable TdApi.MessageSender sender, @Nullable TdApi.SearchMessagesFilter filter, MessageId highlightMessageId, int highlightMode) {
       this.constructor = 4;
       this.chat = chat;
       this.chatList = chatList;
       this.messageThread = null;
-      this.messageTopicId = null;
+      this.messageTopicId = topicId;
       this.searchQuery = query;
       this.searchSender = sender;
       this.searchFilter = filter;
@@ -2595,6 +2607,130 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private TdApi.SearchMessagesFilter previewSearchFilter;
   private ThreadInfo messageThread;
   private TdApi.MessageTopic messageTopicId;
+  private volatile ForumTopicContext forumTopicContext;
+  private ForumTopicStore.TopicSubscription forumTopicSubscription;
+  private Runnable forumInitialHistory;
+  private TdApi.Error forumHistoryError;
+  private Object draftEpoch = new Object();
+  private long inputEditRevision;
+  private volatile boolean accountDataCleared;
+
+  @Nullable
+  public ForumTopicContext getForumTopicContext () { return forumTopicContext; }
+
+  public boolean hasAutomaticAnchor () { return getArgumentsStrict().constructor == 0; }
+
+  private void closeForumTopic () {
+    if (forumTopicSubscription != null) {
+      forumTopicSubscription.close();
+      forumTopicSubscription = null;
+    }
+    forumInitialHistory = null;
+    forumHistoryError = null;
+    forumTopicContext = null;
+    draftEpoch = new Object();
+    inputEditRevision = 0;
+  }
+
+  private void observeForumTopic () {
+    TdApi.MessageTopic topicId = getMessageTopicId();
+    if (!ForumHistory.isForum(topicId)) return;
+    final ForumTopicContext forum = new ForumTopicContext(getChatId(), ((TdApi.MessageTopicForum) topicId).forumTopicId);
+    forumTopicContext = forum;
+    org.thunderdog.challegram.telegram.TdlibSettingsManager.LocalForumDraft local = tdlib.settings().getLocalForumDraft(forum.chatId, forum.topicId);
+    if (local != null) forum.setLocalDraft(local.draft);
+    TdlibForumTopicManager.Key key = new TdlibForumTopicManager.Key(forum.chatId, forum.topicId);
+    TdlibForumTopicManager.Entry cached = tdlib.topics().find(key);
+    if (cached != null) forum.update(cached.value, null);
+    subscribeForumTopic(forum);
+  }
+
+  private void subscribeForumTopic (ForumTopicContext forum) {
+    if (forumTopicSubscription != null) forumTopicSubscription.close();
+    forumTopicSubscription = tdlib.topics().observeTopic(new TdlibForumTopicManager.Key(forum.chatId, forum.topicId), (value, error) -> {
+      if (forumTopicContext != forum || isDestroyed()) return;
+      TdApi.DraftMessage previousDraft = forum.draft();
+      if (!forum.update(value, error)) return;
+      if (contentView != null) {
+        updateForumHeader();
+        updateCounters(true);
+        updateBottomBar(true);
+        manager.refreshEmptyText();
+        if (value != null && !areScheduledOnly()) {
+          manager.updateForumReadState(value);
+        }
+        if (inputView != null && !areScheduledOnly() && !ignoreDraftLoad && !forum.hasLocalDraft() && !inputView.textChangedSinceChatOpened() && !Td.equalsTo(previousDraft, forum.draft())) {
+          updateDraftMessage(forum.chatId, forum.draft());
+        }
+      }
+      if (value != null && error == null && forumInitialHistory != null) {
+        Runnable load = forumInitialHistory;
+        forumInitialHistory = null;
+        load.run();
+      }
+    });
+  }
+
+  @Override
+  public void onPerformStartup (boolean isAfterRestart) {
+    tdlib.ui().post(() -> {
+      if (isDestroyed()) return;
+      if (isAfterRestart && !accountDataCleared && forumTopicContext != null) {
+        // The store invalidates subscriptions when its TDLib instance restarts.
+        subscribeForumTopic(forumTopicContext);
+      }
+      accountDataCleared = false;
+    });
+  }
+
+  @Override
+  public void onPerformUserCleanup () {
+    accountDataCleared = true;
+    tdlib.ui().post(() -> {
+      closeForumTopic();
+      if (!isDestroyed() && inputView != null) inputView.setDraft(null);
+    });
+  }
+
+  public void whenForumTopicReady (Runnable load) {
+    if (forumTopicContext == null || forumTopicContext.topic() != null && forumTopicContext.error() == null) load.run();
+    else {
+      forumInitialHistory = load;
+      manager.onNetworkRequestSent();
+    }
+  }
+
+  private boolean canSendToForumTopic () {
+    return forumTopicContext == null || forumTopicContext.canSend(tdlib.chatStatus(getChatId()), TD.isSupergroup(chat.type));
+  }
+
+  @Nullable
+  private String forumRestriction () {
+    if (forumTopicContext == null) return null;
+    if (forumTopicContext.isLoading()) return Lang.getString(R.string.ForumTopicLoading);
+    if (forumTopicContext.error() != null || forumHistoryError != null) {
+      TdApi.Error error = forumTopicContext.error() != null ? forumTopicContext.error() : forumHistoryError;
+      return Lang.getString(error.code == 404 || error.code == 403 ? R.string.ForumTopicUnavailable : R.string.ForumTopicLoadFailed);
+    }
+    return canSendToForumTopic() ? null : Lang.getString(R.string.ForumTopicClosed);
+  }
+
+  private void updateForumHeader () {
+    if (headerCell != null) headerCell.setForumTopic(chat, getMessageTopicId(), forumTopicContext != null ? forumTopicContext.topic() : null, forumRestriction());
+  }
+
+  public void onForumHistoryError (TdApi.Error error) {
+    if (forumTopicContext == null) return;
+    forumHistoryError = error;
+    updateForumHeader();
+    updateBottomBar(true);
+    manager.refreshEmptyText();
+  }
+
+  @Nullable
+  public String getForumHistoryErrorText () {
+    return forumTopicContext != null && (forumTopicContext.error() != null || forumHistoryError != null) ? forumRestriction() : null;
+  }
   private boolean areScheduled;
   private Referrer referrer;
   private TdApi.InternalLinkTypeVideoChat voiceChatInvitation;
@@ -2620,6 +2756,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private long linkedChatId;
 
   public void setArguments (Arguments args) {
+    saveDraft();
+    if (forumTopicContext != null && contentView != null) manager.resetScroll();
+    closeForumTopic();
     super.setArguments(args);
 
     this.chat = args.chat;
@@ -2641,6 +2780,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
     this.openKeyboard = args.openKeyboard;
     this.foundMessageId = args.foundMessageId;
     this.fillDraft = args.fillDraft;
+
+    observeForumTopic();
 
     if (contentView != null) {
       updateView();
@@ -2792,6 +2933,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
     TdApi.Chat headerChat = messageThread != null ? tdlib.chatSync(messageThread.getContextChatId()) : null;
     headerCell.setChat(tdlib, headerChat != null ? headerChat : chat, messageThread);
+    updateForumHeader();
 
     if (inPreviewMode) {
       switch (previewMode) {
@@ -2834,8 +2976,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
 
     TdApi.DraftMessage draftMessage = null;
-    if (tdlib.canSendBasicMessage(chat)) {
-      draftMessage = getDraftMessage();
+    if (tdlib.canSendBasicMessage(chat) || forumTopicContext != null) {
+      draftMessage = !areScheduledOnly() ? getDraftMessage() : null;
       if (!Td.isEmpty(fillDraft)) {
         if (Td.isEmpty(draftMessage) /*allow dropping replyTo*/) {
           draftMessage = new TdApi.DraftMessage(
@@ -2864,6 +3006,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
     if (inputView != null) {
       inputView.setChat(chat, messageThread, draftMessage != null ? draftMessage.content : null, getCustomInputPlaceholder(), silentButton != null && silentButton.getIsSilent());
+      if (forumTopicContext != null && forumTopicContext.hasLocalDraft()) inputView.setTextChangedSinceChatOpened(true);
     }
     ignoreDraftLoad = false;
     discardAttachedFiles(false);
@@ -2959,7 +3102,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   private void updateCounters (boolean animated) {
     if (chat != null) {
-      if (messageThread != null) {
+      if (forumTopicContext != null) {
+        TdApi.ForumTopic topic = !areScheduledOnly() ? forumTopicContext.topic() : null;
+        setUnreadCountBadge(topic != null ? topic.unreadCount : 0, animated);
+        setMentionCountBadge(topic != null ? topic.unreadMentionCount : 0);
+        setReactionCountBadge(topic != null ? topic.unreadReactionCount : 0);
+      } else if (messageThread != null) {
         int unreadCount;
         if (messageThread.hasUnreadMessages(chat) && !areScheduledOnly()) {
           unreadCount = messageThread.getUnreadMessageCount() != ThreadInfo.UNKNOWN_UNREAD_MESSAGE_COUNT ? messageThread.getUnreadMessageCount() : Tdlib.CHAT_MARKED_AS_UNREAD;
@@ -2981,15 +3129,16 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void scrollToUnreadOrStartMessage () {
-    int anchorMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread, messageTopicId);
+    TdApi.ForumTopic forum = forumTopicContext != null ? forumTopicContext.topic() : null;
+    int anchorMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread, messageTopicId, forum);
     if (!manager.hasReturnMessage()) {
       if (!inPreviewMode && !isInForceTouchMode() && anchorMode == MessagesManager.HIGHLIGHT_MODE_UNREAD) {
-        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, anchorMode);
+        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, anchorMode, forum);
         manager.highlightMessage(messageId, MessagesManager.HIGHLIGHT_MODE_UNREAD_NEXT, null, true);
         return;
       }
-      if (chat != null && MessagesManager.canGoUnread(chat, messageThread, messageTopicId)) {
-        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, MessagesManager.HIGHLIGHT_MODE_UNREAD);
+      if (chat != null && MessagesManager.canGoUnread(chat, messageThread, messageTopicId, forum)) {
+        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, MessagesManager.HIGHLIGHT_MODE_UNREAD, forum);
         int firstUnreadIndex = manager.indexOfFirstUnreadMessage();
         TGMessage bottom = manager.findBottomMessage();
         MessageId bottomMessageId = bottom != null ? bottom.toMessageId() : null;
@@ -3144,7 +3293,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void updateBottomBar (boolean isUpdate) {
-    setInputBlockFlag(FLAG_INPUT_TEXT_DISABLED, !tdlib.canSendBasicMessage(chat));
+    setInputBlockFlag(FLAG_INPUT_TEXT_DISABLED, !tdlib.canSendBasicMessage(chat) || !canSendToForumTopic());
     if (sendButton != null) {
       sendButton.getSlowModeCounterController(tdlib).updateSlowModeTimer(isUpdate);
     }
@@ -3158,7 +3307,14 @@ public class MessagesController extends ViewController<MessagesController.Argume
       setInputVisible(false, false);
       return;
     }
+    String topicRestriction = forumRestriction();
+    if (topicRestriction != null) {
+      boolean retry = forumTopicContext.error() != null || forumHistoryError != null;
+      showActionButton(topicRestriction, retry ? ACTION_RETRY_FORUM : ACTION_EMPTY, retry);
+      return;
+    }
     if (inPreviewSearchMode()) {
+      hideActionButton();
       setInputVisible(false, false);
       if (arePinnedMessages()) {
         showBottomButton(BOTTOM_ACTION_UNPIN_ALL, 0, isUpdate);
@@ -4135,14 +4291,14 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean canSaveDraft () {
-    return canWriteMessagesOrWaitingForReply() && getChatId() != 0 && !inPreviewMode() && !isInForceTouchMode();
+    return !accountDataCleared && (forumTopicContext != null || canWriteMessagesOrWaitingForReply()) && getChatId() != 0 && !areScheduledOnly() && !inPreviewMode() && !isInForceTouchMode();
   }
 
   private void saveDraft () {
     if (canSaveDraft()) {
       if (isEditingMessage()) {
         // TODO save local draft
-      } else if (inputView != null && inputView.textChangedSinceChatOpened() && isFocused()) {
+      } else if (inputView != null && inputView.textChangedSinceChatOpened() && (isFocused() || forumTopicContext != null)) {
         final TdApi.FormattedText outputText = inputView.getOutputText(false);
         final @Nullable ReplyInfo replyTo = getCurrentReplyId();
         final long date = tdlib.currentTime(TimeUnit.SECONDS);
@@ -4162,11 +4318,25 @@ public class MessagesController extends ViewController<MessagesController.Argume
         if (messageThread != null) {
           messageThread.setDraft(draftMessage);
         }
+        final TdApi.DraftMessage outputDraft = !Td.isEmpty(draftMessage) ? draftMessage : null;
+        final ForumTopicContext forum = forumTopicContext;
+        final byte[] localDraft;
+        if (forum != null) {
+          forum.setLocalDraft(outputDraft);
+          localDraft = tdlib.settings().putLocalForumDraft(outputChatId, forum.topicId, outputDraft);
+        } else {
+          localDraft = null;
+        }
         tdlib.send(new TdApi.SetChatDraftMessage(
           outputChatId,
           topicId,
-          !Td.isEmpty(draftMessage) ? draftMessage : null
-        ), tdlib.typedOkHandler());
+          outputDraft
+        ), (ok, error) -> {
+          if (ok != null && forum != null) {
+            tdlib.settings().acknowledgeLocalForumDraft(outputChatId, forum.topicId, localDraft);
+            tdlib.ui().post(() -> { if (forumTopicContext == forum) forum.acknowledgeDraft(outputDraft); });
+          }
+        });
         if (hasAttachedFiles()) {
           // TODO save local draft ?
         }
@@ -4273,6 +4443,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   @Override
   public void destroy () {
+    saveDraft();
+    closeForumTopic();
+    tdlib.listeners().removeCleanupListener(this);
     resetSelectableControl();
 
     discardAttachedFiles(false);
@@ -5518,25 +5691,26 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Deprecated
   private boolean hasWritePermission () {
     // FIXME: this check is outdated and no longer correct
-    return chat != null && tdlib.canSendBasicMessage(chat) && !isEventLog();
+    return chat != null && tdlib.canSendBasicMessage(chat) && canSendToForumTopic() && !isEventLog();
   }
 
   public boolean canSendPhotosAndVideos () { // FIXME separate photos and videos
     return
+      canSendToForumTopic() &&
       tdlib.canSendMessage(chat, RightId.SEND_PHOTOS) &&
       tdlib.canSendMessage(chat, RightId.SEND_VIDEOS);
   }
 
   public boolean hasSendMessagePermission (@RightId int rightId) {
-    return chat != null && tdlib.canSendMessage(chat, rightId) && !isEventLog();
+    return chat != null && tdlib.canSendMessage(chat, rightId) && canSendToForumTopic() && !isEventLog();
   }
 
   public boolean hasSendBasicMessagePermission () {
-    return chat != null && tdlib.canSendBasicMessage(chat) && !isEventLog();
+    return chat != null && tdlib.canSendBasicMessage(chat) && canSendToForumTopic() && !isEventLog();
   }
 
   public boolean hasSendSomeMediaPermission () {
-    return chat != null && tdlib.canSendSendSomeMedia(chat) && !isEventLog();
+    return chat != null && tdlib.canSendSendSomeMedia(chat) && canSendToForumTopic() && !isEventLog();
   }
 
   // test
@@ -6009,6 +6183,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private static final int ACTION_EMPTY = 6;
   private static final int ACTION_EVENT_LOG_SETTINGS = 7;
   private static final int ACTION_AWAITING_REPLY = 8;
+  private static final int ACTION_RETRY_FORUM = 9;
 
   private FrameLayoutFix actionButtonWrap;
   private TextView actionButton;
@@ -6223,6 +6398,17 @@ public class MessagesController extends ViewController<MessagesController.Argume
       }
       case ACTION_UNBAN_USER: {
         tdlib.unblockSender(tdlib.sender(chat.id), tdlib.okHandler());
+        break;
+      }
+      case ACTION_RETRY_FORUM: {
+        if (forumTopicContext != null) {
+          forumHistoryError = null;
+          tdlib.topics().retryTopic(new TdlibForumTopicManager.Key(forumTopicContext.chatId, forumTopicContext.topicId));
+          if (forumInitialHistory == null) manager.retryForumHistory();
+          updateForumHeader();
+          updateBottomBar(true);
+          manager.refreshEmptyText();
+        }
         break;
       }
       case ACTION_EMPTY:
@@ -6566,6 +6752,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       setReplyInfo(new ReplyInfo(tdlib, msg, quote, checklistTaskId, pollOptionId), true);
 
       if (byUser) {
+        inputEditRevision++;
         inputView.setTextChangedSinceChatOpened(true);
         saveDraft();
       }
@@ -6724,6 +6911,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void forceDraftReply (final TdApi.InputMessageReplyTo replyTo) {
+    final Object epoch = draftEpoch;
+    final long revision = inputEditRevision;
     final long currentChatId = chat.id;
     final long replyToChatId, replyToMessageId;
     final TdApi.InputTextQuote replyToQuote;
@@ -6757,8 +6946,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
     if (replyToChatId == currentChatId) {
       TGMessage foundMessage = manager.getAdapter().findMessageById(replyToMessageId);
-      if (foundMessage != null) {
+      if (foundMessage != null && foundMessage.getChatId() == replyToChatId) {
         foundMessage.getMessageWithProperties(msg -> runOnUiThreadOptional(() -> {
+          if (draftEpoch != epoch || isDestroyed() || inputEditRevision != revision) return;
           forceReply(msg, replyToQuote, replyToChecklistTaskId, replyToPollOptionId);
         }));
         return;
@@ -6767,12 +6957,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
     tdlib.send(new TdApi.GetMessage(replyToChatId, replyToMessageId), (foundReplyMessage, error) -> {
       if (foundReplyMessage != null) {
         runOnUiThreadOptional(() -> {
-          if (chat != null && chat.id == currentChatId) {
+          if (draftEpoch == epoch && !isDestroyed() && inputEditRevision == revision && chat != null && chat.id == currentChatId) {
             TdApi.DraftMessage draftMessage = getDraftMessage();
             TdApi.InputMessageReplyTo currentReplyTo = draftMessage != null ? draftMessage.replyTo : null;
             if (Td.equalsTo(replyTo, currentReplyTo)) {
               tdlib.getMessageProperties(foundReplyMessage, properties -> runOnUiThreadOptional(() -> {
-                if (properties != null) {
+                if (properties != null && draftEpoch == epoch && !isDestroyed() && inputEditRevision == revision && getDraftMessage() != null && Td.equalsTo(replyTo, getDraftMessage().replyTo)) {
                   forceReply(
                     new MessageWithProperties(foundReplyMessage, properties),
                     replyToQuote,
@@ -6817,6 +7007,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       if (reply != null) {
         setReplyInfo(null, animated);
         if (byUser) {
+          inputEditRevision++;
           inputView.setTextChangedSinceChatOpened(true);
           saveDraft();
         }
@@ -8104,6 +8295,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (pinnedCount == ListManager.COUNT_UNKNOWN) {
       return;
     }
+    final long targetChatId = getChatId();
+    final TdApi.MessageTopic targetTopic = getMessageTopicId();
     showOptions(new Options.Builder()
       .info(pinnedCount > 1 ? Lang.pluralBold(R.string.UnpinXMessages, pinnedCount) : null)
       .item(canPinAnyMessage(false) ? new OptionItem.Builder()
@@ -8122,7 +8315,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
       .build(),
       (itemView, id) -> {
         if (id == R.id.btn_unpinMessage) {
-          tdlib.send(new TdApi.UnpinAllChatMessages(getChatId()), tdlib.typedOkHandler());
+          if (ForumHistory.isForum(targetTopic)) {
+            tdlib.send(new TdApi.UnpinAllForumTopicMessages(targetChatId, ((TdApi.MessageTopicForum) targetTopic).forumTopicId), tdlib.typedOkHandler());
+          } else {
+            tdlib.send(new TdApi.UnpinAllChatMessages(targetChatId), tdlib.typedOkHandler());
+          }
         } else if (id == R.id.btn_dismissForSelf) {
           manager.dismissPinnedMessage();
         }
@@ -9060,6 +9257,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     }
     updateSendButton(charSequence, true);
     if (byUserAction) {
+      inputEditRevision++;
       setTyping(charSequence.length() > 0);
       inputView.setTextChangedSinceChatOpened(true);
     }
@@ -9163,11 +9361,15 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean showRestriction (View view, @RightId int rightId) {
+    if (showRestriction(view, forumRestriction())) return true;
     CharSequence text = tdlib.getDefaultRestrictionText(chat, rightId);
     return showRestriction(view, text);
   }
 
+  public boolean showForumTopicRestriction (View view) { return showRestriction(view, forumRestriction()); }
+
   public boolean showSlowModeRestriction (View v, @Nullable TdApi.MessageSendOptions sendOptions) {
+    if (showRestriction(v, forumRestriction())) return true;
     CharSequence restriction = tdlib().getSlowModeRestrictionText(getChatId(), sendOptions != null ? sendOptions.schedulingState : null);
     if (restriction != null) {
       if (v == sendButton || v == recordButton) {
@@ -9197,6 +9399,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean showRestriction (View view, @RightId int rightId, int defaultRes, int specificRes, int specificUntilRes) {
+    if (showRestriction(view, forumRestriction())) return true;
     CharSequence restrictionText = tdlib.buildRestrictionText(chat, rightId, defaultRes, specificRes, specificUntilRes);
     return showRestriction(view, restrictionText);
   }
@@ -10068,6 +10271,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public void forwardMessage (TdApi.Message message) { // TODO remove all related to Forward stuff to replace with ShareLayout
+    if (showForumTopicRestriction(null)) return;
     if (tdlib.getRestrictionText(chat, message) == null) {
       ReplyInfo replyInfo = getCurrentReplyId();
       TdApi.MessageTopic topicId = getMessageTopicId(replyInfo);
@@ -10368,6 +10572,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean sendPhotosAndVideosCompressed (final ImageGalleryFile[] files, final boolean needGroupMedia, final TdApi.MessageSendOptions modifiedSendOptions, boolean disableMarkdown, boolean asFiles, boolean showCaptionAboveMedia, boolean hasSpoiler) {
+    if (showForumTopicRestriction(null)) return false;
     if (files == null || files.length == 0) {
       return false;
     }
@@ -10552,7 +10757,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private boolean lastActionCancelled;
 
   public void setChatAction (@TdApi.ChatAction.Constructors int action, boolean set, boolean force) {
-    if (chat == null) {
+    if (chat == null || set && !canSendToForumTopic()) {
       return;
     }
     if (actions == null) {
@@ -10815,7 +11020,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public void onChatTitleChanged (final long chatId, final String title) {
     runOnUiThreadOptional(() -> {
       if (getHeaderChatId() == chatId) {
-        headerCell.setTitle(title);
+        if (forumTopicContext != null) updateForumHeader();
+        else headerCell.setTitle(title);
       }
     });
   }
@@ -10890,7 +11096,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Override
   public void onChatReadOutbox (final long chatId, final long lastReadOutboxMessageId) {
     tdlib.ui().post(() -> {
-      if (getChatId() == chatId && messageThread == null) {
+      if (getChatId() == chatId && messageThread == null && getMessageTopicId() == null) {
         manager.updateChatReadOutbox(lastReadOutboxMessageId);
       }
     });
@@ -10918,7 +11124,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Override
   public void onChatDraftMessageChanged (final long chatId, final @Nullable TdApi.DraftMessage draftMessage) {
     runOnUiThreadOptional(() -> {
-      if (getChatId() == chatId && inputView != null && !inputView.textChangedSinceChatOpened() && !isSecretChat() && messageThread == null) {
+      if (getChatId() == chatId && inputView != null && !inputView.textChangedSinceChatOpened() && !isSecretChat() && messageThread == null && getMessageTopicId() == null) {
         // Applying server chat draft changes only if text wasn't changed while chat was open
         updateDraftMessage(chatId, draftMessage);
       }
@@ -10929,6 +11135,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (isEditingMessage()) {
       return;
     }
+    final Object context = draftEpoch;
     TdApi.InputMessageReplyTo replyTo = draftMessage != null ? draftMessage.replyTo : null;
     if (replyTo == null || replyTo.getConstructor() == TdApi.InputMessageReplyToStory.CONSTRUCTOR) {
       closeReply(false, true);
@@ -10964,6 +11171,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       }
       tdlib.send(new TdApi.GetMessage(replyChatId, replyMessageId), (remoteMessage, error) -> tdlib.send(new TdApi.GetMessageProperties(replyChatId, replyMessageId), (properties, error1) -> {
         runOnUiThreadOptional(() -> {
+          if (draftEpoch != context || isDestroyed() || inputView.textChangedSinceChatOpened() || !Td.equalsTo(getDraftMessage(), draftMessage)) return;
           if (getChatId() == chatId && Td.equalsTo(getDraftMessage(), draftMessage) && remoteMessage != null && properties != null) {
             showReply(new MessageWithProperties(remoteMessage, properties), replyQuote, replyChecklistTaskId, replyPollOptionId, false, false);
           } else {
@@ -11328,6 +11536,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       manager.rebuildLayouts();
       if (headerCell != null) {
         headerCell.setChat(tdlib, chat, messageThread);
+        updateForumHeader();
         if (messageThread != null) {
           updateMessageThreadSubtitle();
         }
