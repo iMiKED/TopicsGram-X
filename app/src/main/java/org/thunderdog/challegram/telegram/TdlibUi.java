@@ -2059,7 +2059,7 @@ public class TdlibUi extends Handler {
           }
         }
         if (error) {
-          if (!(context instanceof MessagesController && ((MessagesController) context).compareChat(chatFinal.id, params != null ? params.threadInfo : null))) {
+          if (!(context instanceof MessagesController && context.tdlib() == tdlib && ((MessagesController) context).compareChat(chatFinal.id, params.threadInfo, params.messageTopicId, (params.options & CHAT_OPTION_SCHEDULED_MESSAGES) != 0))) {
             UI.showToast(TD.isChannel(chatFinal.type) ? R.string.PostNotFound : R.string.MessageNotFound, Toast.LENGTH_SHORT);
             params.options &= ~CHAT_OPTION_ENSURE_HIGHLIGHT_AVAILABILITY;
             params.highlightSet = false;
@@ -2160,15 +2160,18 @@ public class TdlibUi extends Handler {
     if (params != null && params.highlightSet) {
       highlightMode = params.highlightMode;
       highlightMessageId = params.highlightMessageId;
+    } else if (onlyScheduled) {
+      highlightMode = MessagesManager.HIGHLIGHT_MODE_NONE;
+      highlightMessageId = null;
     } else {
-      highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread);
-      highlightMessageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, highlightMode);
+      highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread, messageTopicId);
+      highlightMessageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, highlightMode);
     }
 
     final boolean isSelfChat = tdlib.isSelfChat(chat.id);
 
     boolean doneOpen = false;
-    if (context instanceof MessagesController && !((MessagesController) context).inPreviewMode() && ((MessagesController) context).compareChat(chat.id, messageThread, onlyScheduled)) {
+    if (context instanceof MessagesController && context.tdlib() == tdlib && !((MessagesController) context).inPreviewMode() && ((MessagesController) context).compareChat(chat.id, messageThread, messageTopicId, onlyScheduled)) {
       boolean doneSomething = false;
       if (highlightMode == MessagesManager.HIGHLIGHT_MODE_NORMAL && highlightMessageId != null) {
         ((MessagesController) context).highlightMessage(highlightMessageId, urlOpenParameters);
@@ -2200,7 +2203,7 @@ public class TdlibUi extends Handler {
     }
     if (!doneOpen && highlightMode == MessagesManager.HIGHLIGHT_MODE_NORMAL && highlightMessageId != null) {
       ViewController<?> c = context.context().navigation().getCurrentStackItem();
-      if (c != null && c != context && c.tdlib() == context.tdlib() && c instanceof MessagesController && !((MessagesController) c).inPreviewMode() && ((MessagesController) c).compareChat(chat.id, messageThread, onlyScheduled)) {
+      if (c != null && c != context && c.tdlib() == tdlib && c instanceof MessagesController && !((MessagesController) c).inPreviewMode() && ((MessagesController) c).compareChat(chat.id, messageThread, messageTopicId, onlyScheduled)) {
         ((MessagesController) c).highlightMessage(highlightMessageId, urlOpenParameters);
         doneOpen = true;
       }
@@ -2269,7 +2272,7 @@ public class TdlibUi extends Handler {
     final MessagesController.Arguments arguments;
     if (params != null && !StringUtils.isEmpty(params.searchQuery) && params.foundMessage != null) {
       arguments = new MessagesController.Arguments(chatList, chat, messageThread, messageTopicId, highlightMessageId, highlightMode, filter, params.foundMessage, params.searchQuery);
-    } else if (highlightMessageId != null) {
+    } else if (highlightMessageId != null || onlyScheduled) {
       arguments = new MessagesController.Arguments(chatList, chat, messageThread, messageTopicId, highlightMessageId, highlightMode, filter);
     } else {
       arguments = new MessagesController.Arguments(tdlib, chatList, chat, messageThread, messageTopicId, filter);

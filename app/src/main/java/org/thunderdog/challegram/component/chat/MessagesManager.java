@@ -42,6 +42,7 @@ import org.thunderdog.challegram.data.TGMessage;
 import org.thunderdog.challegram.data.TGMessageBotInfo;
 import org.thunderdog.challegram.data.TGMessageVideo;
 import org.thunderdog.challegram.data.ThreadInfo;
+import org.thunderdog.challegram.data.MessageTopics;
 import org.thunderdog.challegram.mediaview.data.MediaItem;
 import org.thunderdog.challegram.mediaview.data.MediaStack;
 import org.thunderdog.challegram.navigation.ViewController;
@@ -711,6 +712,10 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
   }
 
   public void openChat (TdApi.Chat chat, @Nullable ThreadInfo messageThread, @Nullable TdApi.MessageTopic topicId, TdApi.SearchMessagesFilter filter, MessagesController context, boolean areScheduled, boolean needPinnedMessages) {
+    // Scheduled messages have no persisted history position or unread anchor.
+    if (areScheduled && (highlightMode == HIGHLIGHT_MODE_POSITION_RESTORE || highlightMode == HIGHLIGHT_MODE_UNREAD || highlightMode == HIGHLIGHT_MODE_UNREAD_NEXT)) {
+      setHighlightMessageId(null, HIGHLIGHT_MODE_NONE);
+    }
     if (chat.id != 0) {
       if (Log.isEnabled(Log.TAG_MESSAGES_LOADER)) {
         Log.i(Log.TAG_MESSAGES_LOADER, "[CREATE] chatId:%d", chat.id);
@@ -3064,7 +3069,7 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
     }
     if (highlightMode == HIGHLIGHT_MODE_POSITION_RESTORE) {
       final int accountId = tdlib.id();
-      Settings.SavedMessageId messageId = Settings.instance().getScrollMessageId(accountId, loader.getChatId(), loader.getMessageTopicId());
+      Settings.SavedMessageId messageId = !inSpecialMode() ? Settings.instance().getScrollMessageId(accountId, loader.getChatId(), loader.getMessageTopicId()) : null;
       int offset = messageId != null ? messageId.offsetPixels - scrollMessage.getExtraPadding() : 0;
       this.returnToMessageIds = messageId != null ? messageId.returnToMessageIds : null;
       scrollToPositionWithOffset(index, offset, false);
@@ -3305,8 +3310,16 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
   public static final int CHATS_THRESHOLD = 1;
 
   public static boolean canGoUnread (TdApi.Chat chat, @Nullable ThreadInfo threadInfo) {
+    return canGoUnread(chat, threadInfo, null);
+  }
+
+  public static boolean canGoUnread (TdApi.Chat chat, @Nullable ThreadInfo threadInfo, @Nullable TdApi.MessageTopic topicId) {
     if (threadInfo != null) {
       return threadInfo.hasUnreadMessages(chat) && threadInfo.getLastReadInboxMessageId() != 0;
+    }
+    // Per-topic read state is loaded separately; never borrow the whole-chat anchor.
+    if (topicId != null) {
+      return false;
     }
     return chat.unreadCount >= CHATS_THRESHOLD &&
             chat.lastReadInboxMessageId != 0 && chat.lastReadInboxMessageId != MessageId.MAX_VALID_ID &&
@@ -3315,12 +3328,16 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
   }
 
   public static int getAnchorHighlightMode (int accountId, TdApi.Chat chat, @Nullable ThreadInfo threadInfo) {
+    return getAnchorHighlightMode(accountId, chat, threadInfo, null);
+  }
+
+  public static int getAnchorHighlightMode (int accountId, TdApi.Chat chat, @Nullable ThreadInfo threadInfo, @Nullable TdApi.MessageTopic topicId) {
     if (chat == null) {
       return HIGHLIGHT_MODE_NONE;
     }
-    boolean canGoUnread = canGoUnread(chat, threadInfo);
+    boolean canGoUnread = canGoUnread(chat, threadInfo, topicId);
     Settings.SavedMessageId messageId = Settings.instance().getScrollMessageId(accountId, chat.id,
-      threadInfo != null ? threadInfo.getMessageTopicId() : null
+      MessageTopics.effectiveTopic(threadInfo, topicId)
     );
     boolean preferUnreadFirst = messageId == null || messageId.readFully;
     if (preferUnreadFirst) {
@@ -3341,10 +3358,14 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
   }
 
   public static MessageId getAnchorMessageId (int accountId, TdApi.Chat chat, @Nullable ThreadInfo threadInfo, int anchorMode) {
+    return getAnchorMessageId(accountId, chat, threadInfo, null, anchorMode);
+  }
+
+  public static MessageId getAnchorMessageId (int accountId, TdApi.Chat chat, @Nullable ThreadInfo threadInfo, @Nullable TdApi.MessageTopic topicId, int anchorMode) {
     switch (anchorMode) {
       case HIGHLIGHT_MODE_POSITION_RESTORE: {
         Settings.SavedMessageId messageId = Settings.instance().getScrollMessageId(
-          accountId, chat.id, threadInfo != null ? threadInfo.getMessageTopicId() : null
+          accountId, chat.id, MessageTopics.effectiveTopic(threadInfo, topicId)
         );
         return messageId != null && messageId.id.getMessageId() != 0 ? messageId.id : null;
       }
@@ -3352,6 +3373,8 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
       case HIGHLIGHT_MODE_UNREAD_NEXT: {
         if (threadInfo != null) {
           return new MessageId(threadInfo.getChatId(), threadInfo.getLastReadInboxMessageId() == 0 ? MessageId.MIN_VALID_ID : threadInfo.getLastReadInboxMessageId());
+        } else if (topicId != null) {
+          return null;
         } else if (chat.lastReadOutboxMessageId == MessageId.MAX_VALID_ID || ChatId.isMultiChat(chat.id)) {
           return new MessageId(chat.id, chat.lastReadInboxMessageId);
         } else {

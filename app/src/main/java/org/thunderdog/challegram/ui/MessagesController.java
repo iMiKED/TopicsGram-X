@@ -146,6 +146,7 @@ import org.thunderdog.challegram.data.TGMessageSticker;
 import org.thunderdog.challegram.data.TGSwitchInline;
 import org.thunderdog.challegram.data.TGUser;
 import org.thunderdog.challegram.data.ThreadInfo;
+import org.thunderdog.challegram.data.MessageTopics;
 import org.thunderdog.challegram.filegen.PhotoGenerationInfo;
 import org.thunderdog.challegram.filegen.VideoGenerationInfo;
 import org.thunderdog.challegram.helper.BotHelper;
@@ -1799,7 +1800,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   @Nullable
   public final TdApi.MessageTopic getMessageTopicId () {
-    return messageThread != null ? messageThread.getMessageTopicId() : messageTopicId;
+    return MessageTopics.effectiveTopic(messageThread, messageTopicId);
   }
 
   @Nullable
@@ -1811,7 +1812,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private boolean matchesTopic (@Nullable TdApi.MessageTopic topicId) {
-    return Td.matchesTopic(topicId, messageTopicId);
+    // Message membership in the whole-chat view is deliberately a wildcard.
+    return Td.matchesTopic(topicId, getMessageTopicId());
   }
 
   @Nullable
@@ -1834,11 +1836,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean compareChat (long chatId, @Nullable ThreadInfo threadInfo) {
-    return getChatId() == chatId && ((this.messageThread == null && threadInfo == null) || (this.messageThread != null && this.messageThread.equals(threadInfo)));
+    return compareChat(chatId, threadInfo, null, areScheduledOnly());
   }
 
-  public boolean compareChat (long chatId, TdApi.MessageTopic topicId) {
-    return getChatId() == chatId && matchesTopic(topicId);
+  public boolean compareChat (long chatId, @Nullable TdApi.MessageTopic topicId) {
+    return MessageTopics.sameChat(getChatId(), getMessageTopicId(), chatId, topicId);
   }
 
   public boolean compareChat (long chatId) {
@@ -1846,7 +1848,13 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean compareChat (long chatId, @Nullable ThreadInfo threadInfo, boolean areScheduledOnly) {
-    return getChatId() == chatId && ((this.messageThread == null && threadInfo == null) || (this.messageThread != null && this.messageThread.equals(threadInfo))) && areScheduledOnly == areScheduledOnly();
+    return compareChat(chatId, threadInfo, null, areScheduledOnly);
+  }
+
+  public boolean compareChat (long chatId, @Nullable ThreadInfo threadInfo, @Nullable TdApi.MessageTopic topicId, boolean areScheduledOnly) {
+    return MessageTopics.sameChat(getChatId(), getMessageTopicId(), areScheduledOnly(),
+      chatId, MessageTopics.effectiveTopic(threadInfo, topicId), areScheduledOnly) &&
+      ((messageThread == null && threadInfo == null) || (messageThread != null && messageThread.equals(threadInfo)));
   }
 
   public boolean isChannel () {
@@ -2430,8 +2438,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
       this.chat = chat;
       this.messageThread = messageThread;
       this.messageTopicId = messageTopicId;
-      this.highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread);
-      this.highlightMessageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, highlightMode);
+      this.highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread, messageTopicId);
+      this.highlightMessageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, highlightMode);
       this.searchFilter = filter;
 
       this.inPreviewMode = false;
@@ -2973,15 +2981,15 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void scrollToUnreadOrStartMessage () {
-    int anchorMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread);
+    int anchorMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, messageThread, messageTopicId);
     if (!manager.hasReturnMessage()) {
       if (!inPreviewMode && !isInForceTouchMode() && anchorMode == MessagesManager.HIGHLIGHT_MODE_UNREAD) {
-        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, anchorMode);
+        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, anchorMode);
         manager.highlightMessage(messageId, MessagesManager.HIGHLIGHT_MODE_UNREAD_NEXT, null, true);
         return;
       }
-      if (chat != null && MessagesManager.canGoUnread(chat, messageThread)) {
-        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, MessagesManager.HIGHLIGHT_MODE_UNREAD);
+      if (chat != null && MessagesManager.canGoUnread(chat, messageThread, messageTopicId)) {
+        MessageId messageId = MessagesManager.getAnchorMessageId(tdlib.id(), chat, messageThread, messageTopicId, MessagesManager.HIGHLIGHT_MODE_UNREAD);
         int firstUnreadIndex = manager.indexOfFirstUnreadMessage();
         TGMessage bottom = manager.findBottomMessage();
         MessageId bottomMessageId = bottom != null ? bottom.toMessageId() : null;

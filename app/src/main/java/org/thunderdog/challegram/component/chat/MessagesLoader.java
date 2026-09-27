@@ -37,6 +37,7 @@ import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.data.TGMessage;
 import org.thunderdog.challegram.data.TdApiExt;
 import org.thunderdog.challegram.data.ThreadInfo;
+import org.thunderdog.challegram.data.MessageTopics;
 import org.thunderdog.challegram.emoji.EmojiCodes;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibDelegate;
@@ -150,7 +151,7 @@ public class MessagesLoader implements Client.ResultHandler {
   public void setChat (@Nullable TdApi.Chat chat, @Nullable ThreadInfo messageThread, @Nullable TdApi.MessageTopic topicId, int mode, TdApi.SearchMessagesFilter filter) {
     this.chat = chat;
     this.messageThread = messageThread;
-    this.topicId = topicId;
+    this.topicId = MessageTopics.effectiveTopic(messageThread, topicId);
     this.specialMode = mode;
     this.searchFilter = filter;
     this.messageSource = newMessageSource();
@@ -220,7 +221,7 @@ public class MessagesLoader implements Client.ResultHandler {
 
   @Nullable
   public TdApi.MessageTopic getMessageTopicId () {
-    return messageThread != null ? messageThread.getMessageTopicId() : null;
+    return topicId;
   }
 
   @Nullable
