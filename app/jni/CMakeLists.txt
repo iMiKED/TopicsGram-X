@@ -89,10 +89,10 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.11.0")
   )
 endif()
 
+include("${PROJECT_SOURCE_DIR}/cmake/ResolveTdlib.cmake")
+resolve_tdlib_library("${TDLIB_DIR}" "${ANDROID_NDK_REVISION}" "${ANDROID_ABI}" TDLIB_JNI_LIBRARY)
 add_library(tdjni SHARED IMPORTED)
-set_target_properties(tdjni PROPERTIES IMPORTED_LOCATION
-  ${TDLIB_DIR}/src/main/libs/${ANDROID_NDK_REVISION}/${ANDROID_ABI}/libtdjni.so
-)
+set_target_properties(tdjni PROPERTIES IMPORTED_LOCATION "${TDLIB_JNI_LIBRARY}")
 target_link_libraries(tdjni INTERFACE crypto ssl)
 
 # opus
