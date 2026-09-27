@@ -6,6 +6,8 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
+import tgx.gradle.NativeBuildHost
+import tgx.gradle.nativePath
 import tgx.gradle.validateDir
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -81,8 +83,10 @@ abstract class PatchOpusTask : DefaultTask() {
 
   private fun convert(converter: File, input: File, output: File) {
     val out = ByteArrayOutputStream()
+    val host = NativeBuildHost()
     exec.exec {
-      commandLine("perl", converter.absolutePath, input.absolutePath)
+      environment(host.commandEnvironment())
+      commandLine(host.commandLine(listOf("perl", converter.nativePath(), input.nativePath())))
       standardOutput = out
     }
     val patched = out.toString().replace(Regex("[-_]gnu\\.S", RegexOption.IGNORE_CASE), "_gnu.s")

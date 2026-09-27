@@ -43,6 +43,12 @@ dependencies {
   implementation(libs.android.gradle.plugin)
   implementation(libs.okhttp.latest)
   implementation(libs.kotlinx.serialization.json)
+  testImplementation("junit:junit:4.13.2")
+  testImplementation(gradleApi())
+}
+
+tasks.test {
+  useJUnit()
 }
 
 apply(from = "${rootDir.parentFile}/properties.gradle.kts")

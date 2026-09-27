@@ -4,6 +4,7 @@ import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.konan.file.File
 import tgx.gradle.createEmptyDir
+import tgx.gradle.nativePath
 import tgx.gradle.requireDir
 import tgx.gradle.requireFile
 
@@ -13,7 +14,7 @@ private const val TAG = "libvpx"
 abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
   @TaskAction
   fun buildLibvpx() {
-    val input = requireDir(inputDir.get().asFile)
+    val input = prepareInput(requireDir(inputDir.get().asFile))
 
     val flavor = this.sdkFlavor.get()
     val abi = this.abi.get()
@@ -52,7 +53,7 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
     val ldFlags = mutableListOf(
       "-L${requireDir(
         sysroot.resolve("usr/lib")
-      ).absolutePath}"
+      ).nativePath()}"
     )
     val ndkAbi: String
     when (abi) {
@@ -74,7 +75,7 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
           "-mfpu=neon",
           "-mthumb",
           "-mtune=cortex-a8",
-          "-I${cpuFeatures.absolutePath}"
+          "-I${cpuFeatures.nativePath()}"
         ))
       }
       "x86_64" -> {
@@ -115,37 +116,27 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
       "PATH" to arrayOf(
         "${requireDir(
           prebuilt.resolve("bin")
-        ).absolutePath}",
+        ).nativePath()}",
         System.getenv("PATH")?.takeIf { it.isNotEmpty() }
       ).filterNotNull().joinToString(File.pathSeparator),
 
       "AR" to "${
-        requireFile(
-          prebuilt.resolve("bin/llvm-ar")
-        ).absolutePath
+        buildHost.ndkTool(prebuilt, "llvm-ar").nativePath()
       }",
 
-      "CC" to "${cc.absolutePath}",
-      "AS" to "${cc.absolutePath}",
-      "LD" to "${cc.absolutePath}",
+      "CC" to "${cc.nativePath()}",
+      "AS" to "${cc.nativePath()}",
+      "LD" to "${cc.nativePath()}",
 
-      "CXX" to "${cxx.absolutePath}",
-      "CPP" to "${cxx.absolutePath}",
+      "CXX" to "${cxx.nativePath()}",
+      "CPP" to "${cxx.nativePath()}",
 
       "ASFLAGS" to "-D__ANDROID__",
-      "YASM" to "${requireFile(
-        prebuilt.resolve("bin/yasm")
-      ).absolutePath}",
+      "YASM" to "${buildHost.ndkTool(prebuilt, "yasm").nativePath()}",
 
-      "STRIP" to "${requireFile(
-        prebuilt.resolve("bin/llvm-strip")
-      ).absolutePath}",
-      "RANLIB" to "${requireFile(
-        prebuilt.resolve("bin/llvm-ranlib")
-      ).absolutePath}",
-      "NM" to "${requireFile(
-        prebuilt.resolve("bin/llvm-nm")
-      ).absolutePath}"
+      "STRIP" to "${buildHost.ndkTool(prebuilt, "llvm-strip").nativePath()}",
+      "RANLIB" to "${buildHost.ndkTool(prebuilt, "llvm-ranlib").nativePath()}",
+      "NM" to "${buildHost.ndkTool(prebuilt, "llvm-nm").nativePath()}"
     )
 
     // Output
@@ -190,9 +181,9 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
       logFile,
       mapOf(
         "configure" to arrayOf(
-          configure.absolutePath,
-          "--libc=${sysroot.absolutePath}",
-          "--prefix=${output.absolutePath}",
+          configure.nativePath(),
+          "--libc=${sysroot.nativePath()}",
+          "--prefix=${output.nativePath()}",
           "--target=${libvpxTarget}",
           *extraParams.toTypedArray(),
           "--as=auto",

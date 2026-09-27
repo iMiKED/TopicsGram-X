@@ -37,6 +37,7 @@ This is the complete source code and the build instructions for the official alt
 #### Windows
 
 * **Telegram X** does not provide official build instructions for Windows platform. It is recommended to rely on Linux distributions instead.
+* This branch includes an [experimental Windows native build path](docs/BUILD_WINDOWS.md), using the Windows SDK/NDK and MSYS2. See its prerequisites and verification status before using it.
 
 ### Building
 

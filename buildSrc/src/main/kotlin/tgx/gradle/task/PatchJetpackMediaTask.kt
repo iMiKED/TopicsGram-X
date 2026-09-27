@@ -75,6 +75,7 @@ abstract class PatchJetpackMediaTask : DefaultTask() {
   private fun patchSourceCode(file: File): String {
     val fileName = file.nameWithoutExtension
     return file.readText()
+      .replace("\r\n", "\n")
       .replace(Regex("^#define LOG_TAG \"[^\"]+\"\n", RegexOption.MULTILINE), "")
       .replace(Regex("(?<=^#include <)android/(?=log.h)", RegexOption.MULTILINE), "")
       .replace(Regex("^jint JNI(?=_OnLoad\\s*\\(JavaVM\\s*\\*)", RegexOption.MULTILINE), "extern \"C\" jint ${fileName}")

@@ -19,6 +19,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.Writer
 import java.nio.channels.FileChannel
+import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.util.*
 
@@ -74,10 +75,6 @@ private fun writeToFileImpl(file: File, mkdirs: Boolean = true, block: (File) ->
 
   if (file.exists()) {
     if (!areFileContentsIdentical(file, outFile)) {
-      if (isWindowsHost()) {
-        Thread.sleep(300)
-        System.gc()
-      }
       copyOrReplace(outFile, file)
     }
     if (!outFile.delete() && outFile.exists()) {
@@ -107,15 +104,8 @@ fun copyOrReplace(fromFile: File, toFile: File) {
 }
 
 fun areFileContentsIdentical(a: File, b: File): Boolean {
-  val areIdentical: Boolean
-  FileChannel.open(a.toPath(), StandardOpenOption.READ).use { fileChannelA ->
-    FileChannel.open(b.toPath(), StandardOpenOption.READ).use { fileChannelB ->
-      val mapA = fileChannelA.map(FileChannel.MapMode.READ_ONLY, 0, fileChannelA.size())
-      val mapB = fileChannelB.map(FileChannel.MapMode.READ_ONLY, 0, fileChannelB.size())
-      areIdentical = mapA == mapB
-    }
-  }
-  return areIdentical
+  // Memory-mapped buffers outlive their channels and prevent replacement on Windows.
+  return Files.mismatch(a.toPath(), b.toPath()) == -1L
 }
 
 fun String.camelCaseToUpperCase(): String {
