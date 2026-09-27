@@ -126,10 +126,10 @@
     android:fullBackupContent="false"
     android:dataExtractionRules="@xml/data_extraction_rules"
     android:hardwareAccelerated="true"
-    android:icon="@mipmap/app_launcher"
+    android:icon="@mipmap/topicsgram_launcher"
     android:label="@string/AppName"
     android:largeHeap="true"
-    android:roundIcon="@mipmap/app_launcher_round"
+    android:roundIcon="@mipmap/topicsgram_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/AppTheme"
     android:requestLegacyExternalStorage="true"
@@ -411,9 +411,9 @@
         <data android:host="telegram.dog"/>
       </intent-filter>
       <intent-filter
-        android:icon="@mipmap/app_launcher_round"
+        android:icon="@mipmap/topicsgram_launcher_round"
         android:priority="1"
-        android:roundIcon="@mipmap/app_launcher_round">
+        android:roundIcon="@mipmap/topicsgram_launcher_round">
         <action android:name="android.intent.action.VIEW" />
 
         <category android:name="android.intent.category.BROWSABLE" />
