@@ -184,6 +184,8 @@
   <item type="id" name="controller_forumTopics" />
   <item type="id" name="menu_forumTopics" />
   <item type="id" name="menu_forumActions" />
+  <item type="id" name="btn_openForumTopic" />
+  <item type="id" name="btn_cancelForumReply" />
   <item type="id" name="controller_wallpaper" />
   <item type="id" name="controller_wallpaper_preview" />
   <item type="id" name="controller_eventLog" />

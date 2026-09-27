@@ -150,6 +150,7 @@ public class ChatHeaderView extends ComplexHeaderView {
       topicEmojiReceiver.clear();
     }
     if (!isForumTopic) return;
+    setShowMute(org.thunderdog.challegram.data.ForumPresentation.isMuted(topic != null ? topic.notificationSettings : null, tdlib.chatNeedsMuteIcon(chat)));
     String title = topic != null ? topic.info.name : Lang.getString(R.string.ForumTopicTitle);
     topicLetter = topic != null && topic.info.isGeneral || title.isEmpty() ? "#" : title.substring(0, title.offsetByCodePoints(0, 1));
     setEmojiStatus(null);

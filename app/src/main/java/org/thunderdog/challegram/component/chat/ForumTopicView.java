@@ -13,6 +13,7 @@ import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.ContentPreview;
+import org.thunderdog.challegram.data.ForumPresentation;
 import org.thunderdog.challegram.loader.ComplexReceiver;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibSettingsManager;
@@ -39,7 +40,7 @@ public final class ForumTopicView extends View {
   private long emojiId;
   private String preview = "", states = "", badges = "";
   private boolean hasDraft, muted;
-  private final Drawable pinnedIcon, closedIcon, hiddenIcon;
+  private final Drawable pinnedIcon, closedIcon, hiddenIcon, mutedIcon;
 
   public ForumTopicView (Context context, Tdlib tdlib) {
     super(context);
@@ -47,12 +48,20 @@ public final class ForumTopicView extends View {
     pinnedIcon = Drawables.get(getResources(), R.drawable.deproko_baseline_pin_16);
     closedIcon = Drawables.get(getResources(), R.drawable.baseline_lock_16);
     hiddenIcon = Drawables.get(getResources(), R.drawable.baseline_eye_off_24);
+    mutedIcon = Drawables.get(getResources(), R.drawable.baseline_notifications_off_16);
     setBackground(Theme.fillingSelector());
     setMinimumHeight(Screen.dp(84));
     setFocusable(true);
   }
 
   public TdApi.ForumTopic getTopic () { return topic; }
+
+  private float textScale () { return Math.max(1f, getResources().getConfiguration().fontScale); }
+  private int vertical (float dp) { return Screen.dp(dp * textScale()); }
+
+  @Override protected void onMeasure (int widthMeasureSpec, int heightMeasureSpec) {
+    setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), vertical(84));
+  }
 
   public void setTopic (TdApi.ForumTopic topic) {
     this.topic = topic;
@@ -69,15 +78,15 @@ public final class ForumTopicView extends View {
     if (topic.isPinned) status.add(Lang.getString(R.string.ForumPinned));
     if (topic.info.isClosed) status.add(Lang.getString(R.string.ForumTopicClosed));
     if (topic.info.isHidden) status.add(Lang.getString(R.string.ForumHidden));
-    states = TextUtils.join(" · ", status);
     ArrayList<String> counts = new ArrayList<>();
     if (topic.unreadCount > 0) counts.add(count(topic.unreadCount));
     if (topic.unreadMentionCount > 0) counts.add("@" + count(topic.unreadMentionCount));
     if (topic.unreadReactionCount > 0) counts.add("♥" + count(topic.unreadReactionCount));
     if (topic.unreadPollVoteCount > 0) counts.add("✓" + count(topic.unreadPollVoteCount));
     badges = TextUtils.join("  ", counts);
-    muted = topic.notificationSettings != null && !topic.notificationSettings.useDefaultMuteFor ?
-      topic.notificationSettings.muteFor > 0 : tdlib.chatNeedsMuteIcon(tdlib.chat(topic.info.chatId));
+    muted = ForumPresentation.isMuted(topic.notificationSettings, tdlib.chatNeedsMuteIcon(tdlib.chat(topic.info.chatId)));
+    if (muted) status.add(Lang.getString(R.string.ForumNotificationsMuted));
+    states = TextUtils.join(" · ", status);
     long nextEmojiId = topic.info.icon != null ? topic.info.icon.customEmojiId : 0;
     if (emojiId != nextEmojiId) {
       clearEmoji();
@@ -97,18 +106,18 @@ public final class ForumTopicView extends View {
   private static String count (int n) { return n > 999 ? "999+" : Integer.toString(n); }
 
   private void text (Canvas c, String value, float start, float end, float baseline, float size, int color, boolean medium, boolean rtl) {
-    paint.setTextSize(Screen.dp(size));
+    paint.setTextSize(vertical(size));
     paint.setTypeface(medium ? Fonts.getRobotoMedium() : Fonts.getRobotoRegular());
     paint.setColor(color);
     paint.setTextAlign(rtl ? Paint.Align.RIGHT : Paint.Align.LEFT);
     String line = TextUtils.ellipsize(value.replace('\n', ' '), paint, Math.max(0, end - start), TextUtils.TruncateAt.END).toString();
-    c.drawText(line, rtl ? getWidth() - start : start, Screen.dp(baseline), paint);
+    c.drawText(line, rtl ? getWidth() - start : start, vertical(baseline), paint);
   }
 
   private float stateIcon (Canvas c, Drawable icon, float start, boolean rtl) {
     int save = c.save();
     float size = Screen.dp(16);
-    c.translate(rtl ? getWidth()-start-size : start, Screen.dp(59));
+    c.translate(rtl ? getWidth()-start-size : start, vertical(59));
     float scale = size/icon.getMinimumWidth();
     c.scale(scale, scale);
     Drawables.draw(c, icon, 0, 0, PorterDuffPaint.get(ColorId.iconLight));
@@ -120,7 +129,7 @@ public final class ForumTopicView extends View {
     super.onDraw(c);
     if (topic == null) return;
     boolean rtl = Lang.rtl();
-    float cx = rtl ? getWidth() - Screen.dp(34) : Screen.dp(34), cy = Screen.dp(36);
+    float cx = rtl ? getWidth() - Screen.dp(34) : Screen.dp(34), cy = vertical(36);
     if (customEmoji != null) {
       customEmoji.draw(c, (int) (cx - customEmoji.getWidth() / 2f), (int) (cy - customEmoji.getHeight() / 2f), null, 1f, receiver);
     } else {
@@ -142,15 +151,16 @@ public final class ForumTopicView extends View {
     if (topic.isPinned) stateStart = stateIcon(c, pinnedIcon, stateStart, rtl);
     if (topic.info.isClosed) stateStart = stateIcon(c, closedIcon, stateStart, rtl);
     if (topic.info.isHidden) stateStart = stateIcon(c, hiddenIcon, stateStart, rtl);
-    paint.setTextSize(Screen.dp(12)); paint.setTypeface(Fonts.getRobotoMedium());
+    if (muted) stateStart = stateIcon(c, mutedIcon, stateStart, rtl);
+    paint.setTextSize(vertical(12)); paint.setTypeface(Fonts.getRobotoMedium());
     String displayBadges = TextUtils.ellipsize(badges, paint, Math.max(0, end-stateStart-Screen.dp(20)), TextUtils.TruncateAt.END).toString();
     float badgeWidth = displayBadges.isEmpty() ? 0 : paint.measureText(displayBadges)+Screen.dp(14);
     if (badgeWidth > 0) {
       float left = rtl ? getWidth()-end : end-badgeWidth;
       paint.setColor(muted ? Theme.badgeMutedColor() : Theme.badgeColor());
-      c.drawRoundRect(left, Screen.dp(56), left+badgeWidth, Screen.dp(77), Screen.dp(10), Screen.dp(10), paint);
+      c.drawRoundRect(left, vertical(56), left+badgeWidth, vertical(77), Screen.dp(10), Screen.dp(10), paint);
       paint.setColor(Theme.badgeTextColor()); paint.setTextAlign(Paint.Align.CENTER);
-      c.drawText(displayBadges, left+badgeWidth/2, Screen.dp(71), paint);
+      c.drawText(displayBadges, left+badgeWidth/2, vertical(71), paint);
     }
     text(c, topic.info.isGeneral ? Lang.getString(R.string.ForumGeneral) : "", stateStart, end-badgeWidth-Screen.dp(6), 71, 12, Theme.textDecentColor(), false, rtl);
     paint.setColor(Theme.separatorColor());

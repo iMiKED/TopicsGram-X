@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
   <string name="ForumCreateTopic">Create topic</string>
+  <string name="ForumShowTopics">View as topics</string>
+  <string name="ForumShowAllMessages">View all messages</string>
+  <string name="ForumCopyTopicLink">Copy topic link</string>
+  <string name="ForumOpenTopicAction">Open topic: %1$s</string>
+  <string name="ForumTopicActions">Topic actions</string>
+  <string name="ForumCancelTopicReply">Cancel topic reply</string>
+  <string name="ForumMessageInTopic">Message in %1$s</string>
+  <string name="ForumReadMentions">Mark topic mentions as read</string>
+  <string name="ForumReadReactions">Mark topic reactions as read</string>
+  <string name="ForumReadPollVotes">Mark topic poll votes as read</string>
+  <string name="ForumUnreadPollVotes">Unread poll votes: %1$d — show next</string>
+  <string name="ForumNoUnreadPollVotes">No unread poll votes in this topic.</string>
   <string name="ForumGroupProfile">Group profile</string>
   <string name="ForumEditTopic">Edit topic</string>
   <string name="ForumTopicName">Topic name</string>

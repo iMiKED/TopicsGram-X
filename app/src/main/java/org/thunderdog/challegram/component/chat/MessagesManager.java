@@ -785,7 +785,7 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
           return false;
         MessageProvider provider = (MessageProvider) view;
         TGMessage msg = provider.getMessage();
-        if (msg.markAsViewed() || msg.containsUnreadReactions()) {
+        if (msg.markAsViewed() || msg.containsUnreadReactions() || msg.containsUnreadPollVotes()) {
           long messageId = msg.getBiggestId();
           if (msg.containsUnreadMention() && messageId > lastViewedMentionMessageId) {
             lastViewedMentionMessageId = messageId;
@@ -3642,6 +3642,16 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
       if (loader.getChatId() == chatId) {
         updateMessageUnreadReactions(messageId, unreadReactions);
       }
+    });
+  }
+
+  @Override public void onMessageUnreadPollVotesChanged (long chatId, long messageId, boolean hasUnreadPollVote, int unreadPollVoteCount) {
+    int sentMessageIndex = indexOfSentMessage(chatId, messageId);
+    if (sentMessageIndex != -1) sentMessages.get(sentMessageIndex).containsUnreadPollVotes = hasUnreadPollVote;
+    tdlib.ui().post(() -> {
+      if (loader.getChatId() != chatId) return;
+      TGMessage message = adapter.findMessageById(messageId);
+      if (message != null) message.setMessageUnreadPollVote(messageId, hasUnreadPollVote);
     });
   }
 

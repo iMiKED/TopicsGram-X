@@ -1,6 +1,7 @@
 package org.thunderdog.challegram.ui;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -20,6 +21,7 @@ import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.navigation.HeaderView;
 import org.thunderdog.challegram.telegram.ChatListener;
+import org.thunderdog.challegram.telegram.NotificationSettingsListener;
 import org.thunderdog.challegram.telegram.CleanupStartupDelegate;
 import org.thunderdog.challegram.telegram.ForumTopicStore;
 import org.thunderdog.challegram.telegram.Tdlib;
@@ -33,7 +35,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Owns a cancellable list session; no forum identifiers are encoded as generic threads. */
-public final class ForumTopicsController extends RecyclerViewController<ForumTopicsController.Arguments> implements ChatListener, CleanupStartupDelegate {
+public final class ForumTopicsController extends RecyclerViewController<ForumTopicsController.Arguments> implements ChatListener, CleanupStartupDelegate, NotificationSettingsListener {
   public static final class Arguments {
     public final long chatId;
     public final TdApi.ChatList chatList;
@@ -67,6 +69,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
       @Override public void onScrolled (@NonNull RecyclerView view, int dx, int dy) { loadMoreIfNeeded(); }
     });
     tdlib.listeners().subscribeToChatUpdates(getChatId(), this);
+    tdlib.listeners().subscribeToSettingsUpdates(this);
     tdlib.listeners().addCleanupListener(this);
     tdlib.openChat(getChatId(), this);
     subscribed = true;
@@ -124,6 +127,8 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
       setSearchInput(savedQuery);
     }
     if (adapter != null) adapter.notifyDataSetChanged(); // Local drafts may have changed while a topic was open.
+    TdApi.Chat chat = tdlib.chat(getChatId());
+    if (chat != null && !chat.viewAsTopics) getRecyclerView().post(() -> ForumTopicUi.openViewMode(this, false));
   }
 
   @Override public void fillMenuItems (int id, HeaderView header, LinearLayout menu) {
@@ -140,6 +145,23 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
 
   @Override public void onChatTitleChanged (long chatId, String title) {
     runOnUiThreadOptional(() -> { if (headerView != null) headerView.updateTextTitle(getId(), getName()); });
+  }
+
+  @Override public void onChatViewAsTopics (long chatId, boolean viewAsTopics) {
+    if (!viewAsTopics) tdlib.ui().post(() -> ForumTopicUi.openViewMode(this, false));
+  }
+
+  @Override public void onNotificationSettingsChanged (long chatId, TdApi.ChatNotificationSettings settings) {
+    runOnUiThreadOptional(() -> { if (adapter != null) adapter.notifyDataSetChanged(); });
+  }
+  @Override public void onNotificationSettingsChanged (TdApi.NotificationSettingsScope scope, TdApi.ScopeNotificationSettings settings) {
+    runOnUiThreadOptional(() -> { if (adapter != null) adapter.notifyDataSetChanged(); });
+  }
+
+  @Override public void onConfigurationChanged (Configuration configuration) {
+    super.onConfigurationChanged(configuration);
+    if (adapter != null) adapter.notifyDataSetChanged();
+    if (getRecyclerView() != null) getRecyclerView().requestLayout();
   }
 
   @Override public void handleLanguagePackEvent (int event, int arg1) {
@@ -171,6 +193,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
     closeSession();
     if (subscribed) {
       tdlib.listeners().unsubscribeFromChatUpdates(getChatId(), this);
+      tdlib.listeners().unsubscribeFromSettingsUpdates(this);
       tdlib.listeners().removeCleanupListener(this);
       tdlib.closeChat(getChatId(), this, false);
       subscribed = false;
@@ -225,7 +248,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
       View view;
       if (type == 0) {
         ForumTopicView row = new ForumTopicView(parent.getContext(), tdlib);
-        row.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Screen.dp(84)));
+        row.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         row.setOnClickListener(v -> {
           TdApi.ForumTopic topic = row.getTopic();
           if (topic != null && !context().isNavigationBusy()) {

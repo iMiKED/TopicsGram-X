@@ -18,38 +18,59 @@ import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.component.sticker.TGStickerObj;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.ForumTopicPolicy;
+import org.thunderdog.challegram.data.ForumPresentation;
+import org.thunderdog.challegram.data.ForumNavigation;
 import org.thunderdog.challegram.navigation.ViewController;
 import org.thunderdog.challegram.telegram.ForumTopicActions;
 import org.thunderdog.challegram.telegram.ForumTopicStore;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibForumTopicManager;
 import org.thunderdog.challegram.telegram.TdlibUi;
+import org.thunderdog.challegram.telegram.ChatListener;
 import org.thunderdog.challegram.theme.ColorId;
 import org.thunderdog.challegram.theme.Theme;
 import org.thunderdog.challegram.tool.Screen;
+import org.thunderdog.challegram.tool.UI;
 import org.thunderdog.challegram.util.text.TextEntity;
 import org.thunderdog.challegram.widget.CustomTextView;
 import org.thunderdog.challegram.widget.EmojiLayout;
-import org.thunderdog.challegram.widget.PopupLayout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /** Shared topic actions for the list and the history header. Never mutates a cached TDLib value. */
-public final class ForumTopicUi {
+public final class ForumTopicUi implements ChatListener {
   private final ViewController<?> owner;
   private final Tdlib tdlib;
   private final long chatId;
   private boolean busy;
   private ForumTopicStore.ListSession pinsSession;
+  private Boolean pendingViewMode;
+  private boolean modeAccepted;
+  private AlertDialog editor;
+  private AlertDialog iconPicker;
+  private boolean destroyed;
 
   public ForumTopicUi (ViewController<?> owner, long chatId) {
     this.owner = owner;
     this.tdlib = owner.tdlib();
     this.chatId = chatId;
-    owner.addDestroyListener(() -> { if (pinsSession != null) pinsSession.close(); });
+    tdlib.listeners().subscribeToChatUpdates(chatId, this);
+    owner.addDestroyListener(this::destroy);
   }
+
+  public void destroy () {
+    if (destroyed) return;
+    destroyed = true;
+    pendingViewMode = null;
+    if (pinsSession != null) { pinsSession.close(); pinsSession = null; }
+    if (iconPicker != null) { iconPicker.dismiss(); iconPicker = null; }
+    if (editor != null) { editor.dismiss(); editor = null; }
+    tdlib.listeners().unsubscribeFromChatUpdates(chatId, this);
+  }
+
+  private boolean isActive () { return !destroyed && !owner.isDestroyed() && owner.getChatId() == chatId; }
 
   private TdlibForumTopicManager.Key key (int id) { return new TdlibForumTopicManager.Key(chatId, id); }
   private TdApi.ChatMemberStatus status () { return tdlib.chatStatus(chatId); }
@@ -70,11 +91,11 @@ public final class ForumTopicUi {
     return allowed;
   }
   private void error (String message) {
-    if (!owner.isDestroyed()) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
+    if (isActive()) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
       .setTitle(Lang.getString(R.string.ForumTopicTitle)).setMessage(message).setPositiveButton(Lang.getString(R.string.OK), null));
   }
   private void run (Consumer<ForumTopicActions.Callback<TdApi.Ok>> action) {
-    if (busy || owner.isDestroyed()) return;
+    if (busy || !isActive()) return;
     busy = true;
     action.accept((ok, failure) -> {
       busy = false;
@@ -83,9 +104,9 @@ public final class ForumTopicUi {
     });
   }
   private void menu (String title, List<String> labels, List<Runnable> actions) {
-    if (!owner.isDestroyed() && !busy) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
+    if (isActive() && !busy) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
       .setTitle(title).setItems(labels.toArray(new String[0]), (dialog, which) -> {
-        if (!owner.isDestroyed() && !busy) actions.get(which).run();
+        if (isActive() && !busy) actions.get(which).run();
       }).setNegativeButton(Lang.getString(R.string.Cancel), null));
   }
   private static void add (List<String> labels, List<Runnable> actions, int label, Runnable action) {
@@ -96,6 +117,7 @@ public final class ForumTopicUi {
     ArrayList<String> labels = new ArrayList<>(); ArrayList<Runnable> actions = new ArrayList<>();
     if (canCreate()) add(labels, actions, R.string.ForumCreateTopic, () -> edit(0));
     add(labels, actions, R.string.ForumRefresh, refresh);
+    add(labels, actions, R.string.ForumShowAllMessages, () -> setViewMode(false));
     menu(tdlib.chatTitle(chatId), labels, actions);
   }
 
@@ -122,10 +144,87 @@ public final class ForumTopicUi {
       }
     }
     add(labels, actions, R.string.ForumNotifications, () -> notifications(id));
+    add(labels, actions, R.string.ForumCopyTopicLink, () -> copyLink(id));
+    add(labels, actions, R.string.ForumShowAllMessages, () -> setViewMode(false));
+    add(labels, actions, R.string.ForumShowTopics, () -> setViewMode(true));
+    if (t.unreadMentionCount > 0) add(labels, actions, R.string.ForumReadMentions, () -> run(cb -> tdlib.topics().actions.readAllMentions(key(id), cb)));
+    if (t.unreadReactionCount > 0) add(labels, actions, R.string.ForumReadReactions, () -> run(cb -> tdlib.topics().actions.readAllReactions(key(id), cb)));
+    if (t.unreadPollVoteCount > 0) {
+      labels.add(Lang.getString(R.string.ForumUnreadPollVotes, t.unreadPollVoteCount)); actions.add(() -> openUnreadPollVote(id));
+      add(labels, actions, R.string.ForumReadPollVotes, () -> run(cb -> tdlib.topics().actions.readAllPollVotes(key(id), cb)));
+    }
     add(labels, actions, R.string.ForumGroupProfile, () -> tdlib.ui().openChatProfile(owner, chatId, null, null));
     if (ForumTopicPolicy.canOfferDelete(status(), t.info)) add(labels, actions,
       t.info.isGeneral ? R.string.ForumClearGeneral : R.string.ForumDeleteTopic, () -> confirmDelete(id));
     menu(t.info.name, labels, actions);
+  }
+
+  public void setViewMode (boolean topics) {
+    if (busy || !isActive()) return;
+    pendingViewMode = topics; modeAccepted = false;
+    run(cb -> tdlib.topics().actions.setViewAsTopics(chatId, topics, (ok, failure) -> {
+      cb.onResult(ok, failure);
+      if (failure != null) pendingViewMode = null;
+      else { modeAccepted = true; applyViewMode(); }
+    }));
+  }
+
+  @Override public void onChatViewAsTopics (long chatId, boolean viewAsTopics) {
+    tdlib.ui().post(this::applyViewMode);
+  }
+
+  private void applyViewMode () {
+    TdApi.Chat chat = tdlib.chat(chatId);
+    if (pendingViewMode == null || !modeAccepted || chat == null || chat.viewAsTopics != pendingViewMode ||
+        !isActive() || !owner.isFocused()) return;
+    boolean topics = pendingViewMode;
+    pendingViewMode = null;
+    openViewMode(owner, topics);
+  }
+
+  /** Invoked only after reading the authoritative mode; does not mutate Chat.viewAsTopics. */
+  public static void openViewMode (ViewController<?> owner, boolean topics) {
+    openViewMode(owner, topics, 8);
+  }
+
+  private static void openViewMode (ViewController<?> owner, boolean topics, int retries) {
+    if (owner.isDestroyed() || !owner.isFocused() || owner.context().navigation().getCurrentStackItem() != owner) return;
+    TdApi.Chat chat = owner.tdlib().chat(owner.getChatId());
+    if (chat == null || chat.viewAsTopics != topics) return;
+    if (owner.context().isNavigationBusy()) {
+      if (retries > 0) owner.tdlib().ui().postDelayed(() -> openViewMode(owner, topics, retries - 1), 150);
+      return;
+    }
+    TdlibUi.ChatOpenParameters params = new TdlibUi.ChatOpenParameters();
+    if (owner instanceof MessagesController) params.chatList(((MessagesController) owner).chatList());
+    else if (owner instanceof ForumTopicsController) params.chatList(((ForumTopicsController) owner).getArgumentsStrict().chatList);
+    if (!topics) params.forumMessages();
+    owner.tdlib().ui().openChat(owner, chat.id, params);
+  }
+
+  private void copyLink (int id) {
+    if (busy) return;
+    busy = true;
+    tdlib.topics().actions.getLink(key(id), (link, failure) -> {
+      busy = false;
+      if (!isActive()) return;
+      if (failure != null) error(failure.message);
+      else UI.copyText(link.link, R.string.CopiedLink);
+    });
+  }
+
+  private void openUnreadPollVote (int id) {
+    if (busy) return;
+    busy = true;
+    tdlib.send(ForumPresentation.unreadPollVotes(chatId, id), (found, failure) -> tdlib.ui().post(() -> {
+      busy = false;
+      if (!isActive()) return;
+      if (failure != null) error(failure.message);
+      else if (found.messages.length > 0 && ForumNavigation.forumTopic(chatId, found.messages[0]) instanceof TdApi.MessageTopicForum &&
+          ((TdApi.MessageTopicForum) found.messages[0].topicId).forumTopicId == id) {
+        tdlib.ui().openChat(owner, chatId, new TdlibUi.ChatOpenParameters().messageTopic(new TdApi.MessageTopicForum(id)).highlightMessage(found.messages[0]).keepStack());
+      } else error(Lang.getString(R.string.ForumNoUnreadPollVotes));
+    }));
   }
 
   private void confirmDelete (int id) {
@@ -147,7 +246,7 @@ public final class ForumTopicUi {
     if (!check(ForumTopicPolicy.canManage(status())) || busy) return;
     busy = true;
     pinsSession = tdlib.topics().openList(chatId, "", value -> {
-      if (owner.isDestroyed() || pinsSession == null) return;
+      if (!isActive() || pinsSession == null) return;
       if (value.error != null) {
         pinsSession.close(); pinsSession = null; busy = false; error(value.error.message);
       } else if (value.initialized && !value.refreshing && !value.stale) {
@@ -250,6 +349,7 @@ public final class ForumTopicUi {
       .setTitle(Lang.getString(creating ? R.string.ForumCreateTopic : R.string.ForumEditTopic)).setView(scroll)
       .setPositiveButton(Lang.getString(R.string.Save), null).setNegativeButton(Lang.getString(R.string.Cancel), null));
     if (dialog == null) return;
+    editor = dialog;
     Button save = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
     save.setOnClickListener(v -> {
       String text = name.getText().toString().trim();
@@ -259,14 +359,14 @@ public final class ForumTopicUi {
       busy = true; save.setEnabled(false); error.setText(Lang.getString(R.string.ForumSaving));
       Consumer<TdApi.Error> done = failure -> {
         busy = false;
-        if (owner.isDestroyed() || !dialog.isShowing()) return;
+        if (!isActive() || !dialog.isShowing()) return;
         save.setEnabled(true);
         if (failure != null) error.setText(failure.message); else dialog.dismiss();
       };
       if (creating) tdlib.topics().actions.create(chatId, text, false, new TdApi.ForumTopicIcon(color[0], emoji[0]), (value, failure) -> {
         boolean stillEditing = dialog.isShowing();
         done.accept(failure);
-        if (value != null && stillEditing && !owner.isDestroyed()) tdlib.ui().openChat(owner, chatId,
+        if (value != null && stillEditing && isActive()) tdlib.ui().openChat(owner, chatId,
           new TdlibUi.ChatOpenParameters().messageTopic(new TdApi.MessageTopicForum(value.forumTopicId)).keepStack());
       });
       else tdlib.topics().actions.edit(key(id), text, !initial.info.isGeneral && emoji[0] != initialEmoji, emoji[0], (value, failure) -> done.accept(failure));
@@ -274,8 +374,9 @@ public final class ForumTopicUi {
   }
 
   private void chooseIcon (Consumer<Long> selected) {
+    AlertDialog sourceEditor = editor;
     tdlib.send(new TdApi.GetForumTopicDefaultIcons(), (stickers, failure) -> tdlib.ui().post(() -> {
-      if (owner.isDestroyed()) return;
+      if (!isActive() || sourceEditor == null || sourceEditor != editor || !sourceEditor.isShowing()) return;
       if (failure != null) { error(failure.message); return; }
       LinearLayout content = column();
       ArrayList<CustomTextView> cells = new ArrayList<>();
@@ -312,24 +413,34 @@ public final class ForumTopicUi {
       ScrollView scroll = new ScrollView(owner.context()); scroll.addView(content);
       popup[0] = owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme()).setTitle(Lang.getString(R.string.ForumChooseIcon))
         .setView(scroll).setNegativeButton(Lang.getString(R.string.Cancel), null));
-      if (popup[0] != null) popup[0].setOnDismissListener(d -> { for (CustomTextView cell : cells) cell.performDestroy(); });
+      iconPicker = popup[0];
+      if (popup[0] != null) popup[0].setOnDismissListener(d -> {
+        if (iconPicker == popup[0]) iconPicker = null;
+        for (CustomTextView cell : cells) cell.performDestroy();
+      });
     }));
   }
 
   private void customIcon (Consumer<Long> selected) {
     if (!tdlib.hasPremium()) return;
     EmojiLayout layout = new EmojiLayout(owner.context());
-    PopupLayout[] popup = new PopupLayout[1];
+    AlertDialog[] popup = new AlertDialog[1];
     layout.initWithEmojiStatus(owner, new EmojiLayout.Listener() {
       @Override public boolean onSetEmojiStatus (View view, TGStickerObj sticker, TdApi.EmojiStatus status) {
-        if (!tdlib.hasPremium() || owner.isDestroyed()) return false;
-        selected.accept(sticker.getCustomEmojiId()); popup[0].hideWindow(true); return true;
+        if (!tdlib.hasPremium() || !isActive()) return false;
+        selected.accept(sticker.getCustomEmojiId()); popup[0].dismiss(); return true;
       }
     }, owner);
     int height = Math.min(Screen.dp(360), owner.context().getResources().getDisplayMetrics().heightPixels / 2);
-    popup[0] = owner.showPopup(Lang.getString(R.string.ForumChooseIcon), true, 1, (window, content) -> {
-      content.addView(layout, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height)); return height;
-    }, null);
-    popup[0].setDismissListener(window -> layout.destroy());
+    layout.setForceHeight(height);
+    // A popup attached to the Activity would be behind the editor's Dialog window.
+    popup[0] = owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
+      .setTitle(Lang.getString(R.string.ForumChooseIcon)).setView(layout).setNegativeButton(Lang.getString(R.string.Cancel), null));
+    iconPicker = popup[0];
+    if (popup[0] != null) popup[0].setOnDismissListener(window -> {
+      if (iconPicker == popup[0]) iconPicker = null;
+      layout.destroy();
+    });
+    else layout.destroy();
   }
 }
