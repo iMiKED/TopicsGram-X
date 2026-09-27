@@ -48,6 +48,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   private volatile Object lifecycleEpoch = new Object();
   private boolean subscribed, restoreSearch;
   private int restorePosition = -1, restoreOffset;
+  private ForumTopicUi topicUi;
 
   public ForumTopicsController (Context context, Tdlib tdlib) { super(context, tdlib); }
   @Override public int getId () { return R.id.controller_forumTopics; }
@@ -59,6 +60,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   @Override protected int getSearchHint () { return R.string.ForumSearchTopics; }
 
   @Override protected void onCreateView (Context context, CustomRecyclerView recyclerView) {
+    topicUi = new ForumTopicUi(this, getChatId());
     adapter = new TopicAdapter();
     recyclerView.setAdapter(adapter);
     recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -127,13 +129,13 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   @Override public void fillMenuItems (int id, HeaderView header, LinearLayout menu) {
     if (id == R.id.menu_forumTopics) {
       header.addSearchButton(menu, this);
-      header.addButton(menu, R.id.menu_btn_retry, R.drawable.baseline_sync_24, getHeaderIconColorId(), this, Screen.dp(49));
+      header.addButton(menu, R.id.menu_forumActions, R.drawable.baseline_more_vert_24, getHeaderIconColorId(), this, Screen.dp(49));
     } else if (id == R.id.menu_clear) header.addClearButton(menu, this);
   }
   @Override public void onMenuItemPressed (int id, View view) {
     if (id == R.id.menu_btn_search) openSearchMode();
     else if (id == R.id.menu_btn_clear) clearSearchInput();
-    else if (id == R.id.menu_btn_retry && session != null) session.refresh();
+    else if (id == R.id.menu_forumActions) topicUi.showListMenu(() -> { if (session != null) session.refresh(); });
   }
 
   @Override public void onChatTitleChanged (long chatId, String title) {
@@ -229,6 +231,11 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
           if (topic != null && !context().isNavigationBusy()) {
             tdlib.ui().openChat(ForumTopicsController.this, getChatId(), new TdlibUi.ChatOpenParameters().chatList(getArgumentsStrict().chatList).messageTopic(new TdApi.MessageTopicForum(topic.info.forumTopicId)).keepStack());
           }
+        });
+        row.setOnLongClickListener(v -> {
+          if (row.getTopic() == null) return false;
+          topicUi.showTopicMenu(row.getTopic().info.forumTopicId);
+          return true;
         });
         view = row;
       } else {

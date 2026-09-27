@@ -1901,6 +1901,10 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Override
   public void onChatHeaderClick () {
     if (chat != null) {
+      if (forumTopicContext != null && !inPreviewSearchMode()) {
+        forumTopicUi().showTopicMenu(forumTopicContext.topicId);
+        return;
+      }
       if (Test.NEED_CLICK) {
         if (Test.onChatClick(tdlib, chat)) {
           return;
@@ -2630,6 +2634,16 @@ public class MessagesController extends ViewController<MessagesController.Argume
     forumTopicContext = null;
     draftEpoch = new Object();
     inputEditRevision = 0;
+  }
+
+  private ForumTopicUi forumUi;
+  private long forumUiChatId;
+  private ForumTopicUi forumTopicUi () {
+    if (forumUi == null || forumUiChatId != getChatId()) {
+      forumUiChatId = getChatId();
+      forumUi = new ForumTopicUi(this, forumUiChatId);
+    }
+    return forumUi;
   }
 
   private void observeForumTopic () {
@@ -5673,6 +5687,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public boolean canPinAnyMessage (boolean checkUi) {
+    if (forumTopicContext != null) {
+      // Closing a topic restricts sending, not an administrator's independent pin-message right.
+      return chat != null && !areScheduled && !isEventLog() && (!checkUi || !inPreviewMode) &&
+        org.thunderdog.challegram.data.ForumTopicPolicy.canPinMessages(tdlib.chatStatus(chat.id), chat.permissions);
+    }
     return (checkUi ? canWriteMessages() : hasWritePermission()) && chat != null && tdlib.canPinMessages(chat) && !areScheduled;
   }
 
@@ -8343,7 +8362,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
       (itemView, id) -> {
         if (id == R.id.btn_unpinMessage) {
           if (ForumHistory.isForum(targetTopic)) {
-            tdlib.send(new TdApi.UnpinAllForumTopicMessages(targetChatId, ((TdApi.MessageTopicForum) targetTopic).forumTopicId), tdlib.typedOkHandler());
+            TdApi.Chat target = tdlib.chat(targetChatId);
+            if (target != null && org.thunderdog.challegram.data.ForumTopicPolicy.canPinMessages(tdlib.chatStatus(targetChatId), target.permissions)) {
+              tdlib.topics().actions.unpinAllMessages(new TdlibForumTopicManager.Key(targetChatId, ((TdApi.MessageTopicForum) targetTopic).forumTopicId), (ok, error) -> {
+                if (error != null) UI.showError(error);
+              });
+            }
           } else {
             tdlib.send(new TdApi.UnpinAllChatMessages(targetChatId), tdlib.typedOkHandler());
           }
