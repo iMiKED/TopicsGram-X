@@ -6588,8 +6588,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       tdlib.ui().openMessage(this, getChatId(), messageId, null);
       return;
     }
-    manager.highlightMessage(messageId, MessagesManager.HIGHLIGHT_MODE_NORMAL, null, pagerScrollPosition == 0);
-    showMessagesListIfNeeded();
+    highlightMessageInTopic(messageId, null);
   }
 
   public void highlightMessage (MessageId messageId, MessageId fromMessageId) {
@@ -6605,6 +6604,29 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public void highlightMessage (MessageId messageId, long[] returnToMessageIds) {
     if (inPreviewSearchMode()) {
       tdlib.ui().openMessage(this, getChatId(), messageId, null);
+      return;
+    }
+    highlightMessageInTopic(messageId, returnToMessageIds);
+  }
+
+  private Object forumHighlightRequest;
+
+  private void highlightMessageInTopic (MessageId messageId, @Nullable long[] returnToMessageIds) {
+    Object request = forumHighlightRequest = new Object();
+    ForumTopicContext forum = forumTopicContext;
+    if (forum != null && !areScheduledOnly() && messageId.getMessageId() > 0 &&
+        manager.findMessageView(messageId.getChatId(), messageId.getMessageId()) == null) {
+      tdlib.send(new TdApi.GetMessage(messageId.getChatId(), messageId.getMessageId()), (message, error) -> tdlib.ui().post(() -> {
+        if (isDestroyed() || forumTopicContext != forum || forumHighlightRequest != request || !isFocused()) return;
+        if (message != null && !compareChat(message.chatId, message.topicId)) {
+          tdlib.ui().openChat(this, message.chatId, new TdlibUi.ChatOpenParameters().keepStack().messageTopic(message.topicId).highlightMessage(message));
+        } else if (message != null) {
+          manager.highlightMessage(messageId, MessagesManager.HIGHLIGHT_MODE_NORMAL, returnToMessageIds, pagerScrollPosition == 0);
+          showMessagesListIfNeeded();
+        } else {
+          UI.showToast(R.string.MessageNotFound, Toast.LENGTH_SHORT);
+        }
+      }));
       return;
     }
     manager.highlightMessage(messageId, MessagesManager.HIGHLIGHT_MODE_NORMAL, returnToMessageIds, pagerScrollPosition == 0);
@@ -6896,7 +6918,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
   @Override
   public void onMessageHighlightRequested (ReplyBarView view, TdApi.Message message, @Nullable TdApi.InputTextQuote quote) {
     if (message.chatId == getChatId()) {
-      highlightMessage(new MessageId(message.chatId, message.id));
+      if (ForumHistory.isForum(getMessageTopicId()) && !compareChat(message.chatId, message.topicId)) {
+        tdlib.ui().openChat(this, message.chatId, new TdlibUi.ChatOpenParameters().keepStack().highlightMessage(message));
+      } else {
+        highlightMessage(new MessageId(message.chatId, message.id));
+      }
     } else {
       if (anotherChatHint != null && anotherChatHint.isVisible()) {
         tdlib.ui().openMessage(this, message.chatId, new MessageId(message.chatId, message.id), new TdlibUi.UrlOpenParameters().controller(this));
@@ -7445,7 +7471,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public void openPreviewMessage (TGMessage msg) {
     if (arePinnedMessages()) {
       ViewController<?> c = previousStackItem();
-      if (c instanceof MessagesController && c.getChatId() == getChatId()) {
+      if (c instanceof MessagesController && c.tdlib() == tdlib &&
+          ((MessagesController) c).compareChat(getChatId(), messageThread, getMessageTopicId(), areScheduledOnly())) {
         ((MessagesController) c).highlightMessage(msg.toMessageId());
         navigateBack();
         return;

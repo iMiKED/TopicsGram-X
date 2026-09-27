@@ -2137,7 +2137,10 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
     int highlightMode;
     Object shareItem = pickerDelegate != null ? pickerDelegate.getShareItem() : null;
     TdlibUi.ChatOpenParameters params;
-    if ((highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, null)) != MessagesManager.HIGHLIGHT_MODE_NONE) {
+    if (pickerDelegate == null && chat.viewAsTopics && tdlib.isForum(chat.id)) {
+      // A group-wide unread/scroll anchor must not turn a plain forum tap into a message jump.
+      params = new TdlibUi.ChatOpenParameters();
+    } else if ((highlightMode = MessagesManager.getAnchorHighlightMode(tdlib.id(), chat, null)) != MessagesManager.HIGHLIGHT_MODE_NONE) {
       params = new TdlibUi.ChatOpenParameters().shareItem(shareItem).highlightMessage(highlightMode, MessagesManager.getAnchorMessageId(tdlib.id(), chat, null, highlightMode));
     } else {
       params = new TdlibUi.ChatOpenParameters().shareItem(shareItem);
@@ -2148,6 +2151,7 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
     if (chatList().getConstructor() != TdApi.ChatListMain.CONSTRUCTOR) {
       params.keepStack();
     }
+    params.chatList(chatList());
     tdlib.ui().openChat(this, chat, params);
   }
 

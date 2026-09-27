@@ -19,6 +19,8 @@ import androidx.annotation.Nullable;
 
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.data.TD;
+import org.thunderdog.challegram.data.ForumHistory;
+import org.thunderdog.challegram.data.ForumNavigation;
 import org.thunderdog.challegram.unsorted.Settings;
 
 import java.util.ArrayList;
@@ -103,7 +105,9 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
 
   @Nullable
   public TdApi.MessageTopic getMessageTopicId () {
-    return null;
+    TdlibNotification last = lastNotification();
+    TdApi.MessageTopic topic = last != null ? ForumNavigation.notificationTopic(last.getNotificationContent()) : null;
+    return ForumHistory.isForum(topic) ? topic : null;
   }
 
   public boolean isSelfChat () {
@@ -121,6 +125,11 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
   }
 
   public long findTargetMessageId () {
+    // Notification groups can contain several topics. Open/reply to the same (latest) message.
+    if (tdlib.isForum(chatId)) {
+      TdlibNotification last = lastNotification();
+      return last != null ? last.findMessageId() : 0;
+    }
     if (!isMention())
       return 0;
     for (TdlibNotification notification : this) {

@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
   <string name="ForumTopicTitle">Topic</string>
+  <string name="ForumGeneral">General</string>
+  <string name="ForumPinned">Pinned</string>
+  <string name="ForumHidden">Hidden</string>
+  <string name="ForumSearchTopics">Search topics</string>
+  <string name="ForumTopicsLoading">Loading topics…</string>
+  <string name="ForumTopicsEmpty">No topics found</string>
+  <string name="ForumTopicsLoadFailed">Could not load topics. Tap to retry</string>
+  <string name="ForumTopicsStale">Showing cached topics. Tap to refresh</string>
+  <string name="ForumUnreadCounts">%1$d unread messages, %2$d mentions, %3$d reactions, %4$d poll votes</string>
   <string name="ForumTopicLoading">Loading topic…</string>
   <string name="ForumTopicClosed">Topic closed</string>
   <string name="ForumTopicUnavailable">Topic unavailable. Tap to retry</string>

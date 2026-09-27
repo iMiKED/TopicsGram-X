@@ -25,6 +25,7 @@ import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.Log;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
+import org.thunderdog.challegram.data.ForumHistory;
 import org.thunderdog.challegram.tool.UI;
 
 import java.util.concurrent.TimeUnit;
@@ -196,7 +197,7 @@ public class TdlibNotificationExtras {
   public void read (Tdlib tdlib) {
     boolean needToast = tdlib.notifications().isUnknownGroup(notificationGroupId);
     if (areMentions) {
-      tdlib.client().send(new TdApi.ReadAllChatMentions(chatId), tdlib.silentHandler());
+      tdlib.client().send(ForumHistory.isForum(topicId) ? new TdApi.ReadAllForumTopicMentions(chatId, ((TdApi.MessageTopicForum) topicId).forumTopicId) : new TdApi.ReadAllChatMentions(chatId), tdlib.silentHandler());
     } else {
       tdlib.readMessages(chatId, messageIds, new TdApi.MessageSourceNotification());
     }

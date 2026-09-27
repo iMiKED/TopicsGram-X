@@ -74,6 +74,7 @@ import org.thunderdog.challegram.ui.IntroController;
 import org.thunderdog.challegram.ui.ListItem;
 import org.thunderdog.challegram.ui.MainController;
 import org.thunderdog.challegram.ui.MessagesController;
+import org.thunderdog.challegram.ui.ForumTopicsController;
 import org.thunderdog.challegram.ui.PasscodeController;
 import org.thunderdog.challegram.ui.PasswordController;
 import org.thunderdog.challegram.ui.PhoneController;
@@ -783,7 +784,7 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
       }
       long messageId = intent.getLongExtra("message_id", 0);
       if (accountId != TdlibAccount.NO_ID && chatId != 0) {
-        openMessagesController(accountId, chatId, messageId);
+        openMessagesController(accountId, chatId, messageId, intent.getExtras() != null ? Td.restoreMessageTopic(intent.getExtras(), "topic_id") : null);
         return true;
       } else {
         Log.e("Cannot open chat, no information found: %s", intent);
@@ -1251,6 +1252,8 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
       restore = new PasscodeController(context, tdlib);
     } else if (id == R.id.controller_messages) {
       restore = new MessagesController(context, tdlib);
+    } else if (id == R.id.controller_forumTopics) {
+      restore = new ForumTopicsController(context, tdlib);
     } else if (id == R.id.controller_profile) {
       restore = new ProfileController(context, tdlib);
     } else if (id == R.id.controller_themeSettings) {
@@ -1383,13 +1386,13 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     }
   }
 
-  private void openMessagesController (int accountId, long chatId, long specificMessageId) {
+  private void openMessagesController (int accountId, long chatId, long specificMessageId, @Nullable TdApi.MessageTopic topicId) {
     final Tdlib tdlib = TdlibManager.instanceForAccountId(accountId).account(accountId).tdlib();
     tdlib.awaitInitialization(() -> {
       tdlib.incrementUiReferenceCount();
       handler.post(() -> {
         final TdlibContext context = new TdlibContext(this, tdlib);
-        final TdlibUi.ChatOpenParameters params = new TdlibUi.ChatOpenParameters().onDone(tdlib::decrementUiReferenceCount);
+        final TdlibUi.ChatOpenParameters params = new TdlibUi.ChatOpenParameters().messageTopic(topicId).onDone(tdlib::decrementUiReferenceCount);
         if (specificMessageId != 0)
           params.highlightMessage(new MessageId(chatId, specificMessageId));
         tdlib.ui().openChat(context, chatId, params);
