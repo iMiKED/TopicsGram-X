@@ -1,10 +1,27 @@
 package org.thunderdog.challegram.data;
 
 import org.drinkless.tdlib.TdApi;
+import org.thunderdog.challegram.R;
 
 /** Pure common-stream rules: display identity, composer identity and read actions must agree. */
 public final class ForumPresentation {
   private ForumPresentation () { }
+
+  /** Compact service text for previews; the history retains its full actor/name formatting. */
+  public static int servicePreview (TdApi.MessageContent content) {
+    switch (content.getConstructor()) {
+      case TdApi.MessageForumTopicCreated.CONSTRUCTOR:
+        return R.string.ForumTopicCreated;
+      case TdApi.MessageForumTopicEdited.CONSTRUCTOR:
+        return R.string.ForumTopicUpdated;
+      case TdApi.MessageForumTopicIsClosedToggled.CONSTRUCTOR:
+        return ((TdApi.MessageForumTopicIsClosedToggled) content).isClosed ? R.string.ForumTopicClosed : R.string.ForumTopicReopened;
+      case TdApi.MessageForumTopicIsHiddenToggled.CONSTRUCTOR:
+        return ((TdApi.MessageForumTopicIsHiddenToggled) content).isHidden ? R.string.ForumGeneralHidden : R.string.ForumGeneralShown;
+      default:
+        return 0;
+    }
+  }
 
   public static boolean showTopicButton (TdApi.MessageTopic message, TdApi.MessageTopic viewed, boolean thread, boolean scheduled, boolean preview) {
     return ForumHistory.isForum(message) && viewed == null && !thread && !scheduled && !preview;

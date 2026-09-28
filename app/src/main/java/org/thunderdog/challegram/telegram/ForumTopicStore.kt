@@ -103,6 +103,8 @@ class ForumTopicStore(
   private class PageRequest(val stamp: Long, val epoch: Long, val cursor: Cursor, val kind: Load)
   private class ListState(val key: ListKey) {
     val ids = LinkedHashSet<Key>()
+    // ForumTopic.order is activity order, not pinned order. Preserve the server's pin sequence.
+    val pinnedRanks = LinkedHashMap<Key, Int>()
     val sessions = LinkedHashSet<ListSession>()
     val seenCursors = HashSet<Cursor>()
     var cursor = Cursor()
@@ -269,12 +271,14 @@ class ForumTopicStore(
       // Retain updates arriving after refresh began, but replace old page membership.
       state.ids.removeAll { key -> records[key]?.let { maxOf(it.infoStamp, it.updateStamp, it.dirtyStamp, it.fullStamp) <= request.stamp } != false }
       state.seenCursors.clear()
+      state.pinnedRanks.clear()
     }
     for (topic in result.topics) {
       val key = Key(topic.info.chatId, topic.info.forumTopicId)
       val previousInfo = records[key]?.value?.info
       if (merge(key, topic, request.stamp)) {
         state.ids.add(key)
+        if (topic.isPinned && key !in state.pinnedRanks) state.pinnedRanks[key] = (state.pinnedRanks.values.maxOrNull() ?: -1) + 1
         if (!sameInfo(previousInfo, records[key]?.value?.info)) invalidateSearch(key.chatId, except = state)
       }
     }
@@ -334,12 +338,15 @@ class ForumTopicStore(
     if (key !in records && !interested(key)) return@onOwner
     if (sameUpdate(records[key]?.value, update)) return@onOwner
     val record = records.getOrPut(key) { Record() }
+    val pinChanged = record.value?.let { it.isPinned != update.isPinned } == true
     record.updateStamp = ++sequence
     record.update = update
     record.value = record.value?.let { applyUpdate(it, update) }
     // This update doesn't contain order, lastMessage or unreadCount.
     notifyTopic(key, record)
     invalidate(key, externalEvent = false)
+    // A pin event has no position. Reconcile the list, including changes from another client.
+    if (pinChanged) invalidateChatImpl(key.chatId)
   }
 
   fun onMessage(message: TdApi.Message) = onOwner {
@@ -368,9 +375,10 @@ class ForumTopicStore(
   private fun invalidateChatImpl(chatId: Long) {
     for (state in lists.values) {
       if (state.key.chatId == chatId) {
+        val notify = !state.stale
         state.stale = true
         state.dirty = true
-        emit(state)
+        if (notify) emit(state)
       }
     }
     scheduleReconciliation()
@@ -391,10 +399,15 @@ class ForumTopicStore(
     record.dirtyStamp = ++sequence
     if (externalEvent) record.eventStamp = sequence
     for (state in lists.values) {
-      if (state.key.chatId == key.chatId) state.stale = true
+      if (state.key.chatId == key.chatId) {
+        // Repeated message invalidations do not change rows. Publish the stale transition once;
+        // metadata/counter updates must still publish their new immutable row while already stale.
+        val notify = !state.stale || !externalEvent
+        state.stale = true
+        if (notify) emit(state)
+      }
     }
     if (interested(key)) queueTopic(key)
-    emitChat(key.chatId)
   }
 
   private fun interested(key: Key): Boolean = topicObservers[key]?.any { !it.closed } == true ||
@@ -463,7 +476,7 @@ class ForumTopicStore(
           record.value = null
           record.fullStamp = request.stamp
           record.removedStamp = ++sequence
-          lists.values.forEach { it.ids.remove(key) }
+          lists.values.forEach { it.ids.remove(key); it.pinnedRanks.remove(key) }
         }
         for (state in lists.values.filter { it.key.chatId == key.chatId }) {
           if (removed) state.topicErrors.remove(key)
@@ -493,9 +506,13 @@ class ForumTopicStore(
   }
 
   private fun snapshot(state: ListState): Snapshot {
-    val topics = state.ids.mapNotNull { records[it]?.value }.sortedWith(
-      compareByDescending<TdApi.ForumTopic> { it.order }.thenBy { it.info.forumTopicId }
-    )
+    val topics = state.ids.mapNotNull { records[it]?.value }
+      // A server page can include pinned topics unrelated to the query. Filter display rows only:
+      // raw membership and the server cursor must still advance through such pages.
+      .filter { state.key.query.isEmpty() || it.info.name.contains(state.key.query, ignoreCase = true) }
+      .sortedWith(compareByDescending<TdApi.ForumTopic> { it.isPinned }
+        .thenBy { if (it.isPinned) state.pinnedRanks[Key(it.info.chatId, it.info.forumTopicId)] ?: Int.MAX_VALUE else Int.MAX_VALUE }
+        .thenByDescending { it.order }.thenBy { it.info.forumTopicId })
     return Snapshot(state.key, Collections.unmodifiableList(topics), state.totalCount, state.initialized,
       state.request?.kind == Load.INITIAL, state.request?.kind == Load.MORE, state.request?.kind == Load.REFRESH,
       state.endReached, state.stale, state.error ?: state.topicErrors.values.firstOrNull(), state.cursor)

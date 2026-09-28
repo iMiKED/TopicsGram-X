@@ -22,11 +22,13 @@ internal class ForumTopicTestBackend : ForumTopicStore.Backend {
   var deferOwner = false
   private var time = 0L
   private var sequence = 0
+  var publicationCount = 0
+    private set
 
   override fun execute(action: () -> Unit) { if (deferOwner) ownerTasks.add(action) else action() }
   override fun send(request: TdApi.Function<*>, callback: (TdApi.Object) -> Unit) { calls.add(Call(request, callback)) }
   override fun schedule(delayMs: Long, action: () -> Unit) { timers.add(Task(time + delayMs, sequence++, action)) }
-  override fun publish(action: () -> Unit) { publications.add(action) }
+  override fun publish(action: () -> Unit) { publicationCount++; publications.add(action) }
   fun publish() { while (publications.isNotEmpty()) publications.removeFirst()() }
   fun execute() { while (ownerTasks.isNotEmpty()) ownerTasks.removeFirst()() }
   fun advance(ms: Long = ForumTopicStore.RECONCILE_DELAY_MS) {

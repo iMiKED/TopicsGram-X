@@ -890,7 +890,7 @@ afterEvaluate {
 }
 
 dependencies {
-  testImplementation("junit:junit:4.13.2")
+  testImplementation(libs.junit)
   sinceNougatImplementation(libs.androidx.profileinstaller)
   flavorImplementation(
     libs.androidx.tracing.legacy,

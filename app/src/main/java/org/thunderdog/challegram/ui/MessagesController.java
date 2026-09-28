@@ -7131,7 +7131,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
     ReplyInfo scopedReply = getCurrentReplyId();
     TdApi.MessageTopic after = ForumHistory.outgoingTopic(getMessageTopicId(), scopedReply != null ? scopedReply.inTopicId : null);
     if (!Td.equalsTo(before, after)) cancelChatActions();
-    if (forumTopicContext == null && getMessageTopicId() == null && messageThread == null && !(restoreReplyForumDraft && replyInfo == null)) {
+    // The activity pre-creates this controller before binding a chat. clearReply() also runs there.
+    if (chat != null && forumTopicContext == null && getMessageTopicId() == null && messageThread == null && !(restoreReplyForumDraft && replyInfo == null)) {
       observeReplyForum(ForumHistory.isForum(after) ? ((TdApi.MessageTopicForum) after).forumTopicId : 0, false);
       if (replyInfo != null) restoreReplyForumDraft = false;
       if (inputView != null) updateBottomBar(true);

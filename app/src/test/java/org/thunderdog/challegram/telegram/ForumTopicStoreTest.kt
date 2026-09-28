@@ -28,11 +28,82 @@ class ForumTopicStoreTest {
     assertFalse(session.snapshot.isEmpty)
   }
 
-  @Test fun orderIsAuthoritativeIncludingPinnedAndLongValues() {
+  @Test fun pinsPrecedeActivityOrderIncludingLongValues() {
     val session = loaded(topic(18, order = Long.MIN_VALUE).apply { isPinned = true }, topic(19, order = Long.MAX_VALUE), topic(17, order = Long.MAX_VALUE))
-    assertEquals(listOf(17, 19, 18), ids(session))
+    assertEquals(listOf(18, 17, 19), ids(session))
     assertFalse(session.snapshot.loadingInitial)
     assertFalse(session.snapshot.stale)
+  }
+
+  @Test fun multiplePinsKeepServerOrderAcrossPagesAndRefresh() {
+    val first = topic(18, order = 1).apply { isPinned = true }
+    val second = topic(19, order = Long.MAX_VALUE).apply { isPinned = true }
+    val session = loaded(first)
+    session.loadMore()
+    backend.next<TdApi.GetForumTopics>().reply(page(first, second, topic(20)))
+    assertEquals(listOf(18, 19, 20), ids(session))
+    session.refresh()
+    backend.next<TdApi.GetForumTopics>().reply(page(second, first, topic(20)))
+    assertEquals(listOf(19, 18, 20), ids(session))
+  }
+
+  @Test fun pinUpdateReconcilesServerPositionAndUnpinRestoresActivityOrder() {
+    val first = topic(18, order = 1).apply { isPinned = true }
+    val second = topic(19, order = 2)
+    val session = loaded(first, second, topic(20, order = 3))
+    store.updateTopic(update(topic(19, order = 2).apply { isPinned = true }))
+    backend.advance()
+    backend.next<TdApi.GetForumTopics>().reply(page(topic(19, order = 2).apply { isPinned = true }, first, topic(20, order = 3)))
+    assertEquals(listOf(19, 18, 20), ids(session))
+    store.updateTopic(update(second))
+    assertEquals(listOf(18, 20, 19), ids(session))
+  }
+
+  @Test fun deletingAPinDoesNotReuseAnotherPinsRankOnNextPage() {
+    val session = loaded(topic(18, order = 1).apply { isPinned = true },
+      topic(19, order = 2).apply { isPinned = true }, topic(20, order = 3).apply { isPinned = true })
+    store.retryTopic(Key(100, 19))
+    backend.next<TdApi.GetForumTopic>().reply(TdApi.Error(404, "Synthetic missing topic"))
+    session.loadMore()
+    backend.next<TdApi.GetForumTopics>().reply(page(topic(21, order = 100).apply { isPinned = true }))
+    assertEquals(listOf(18, 20, 21), ids(session))
+  }
+
+  @Test fun searchExcludesUnrelatedPinsWithoutLosingPaginationProgress() {
+    val session = open("  bEtA  ")
+    backend.next<TdApi.GetForumTopics>().reply(page(topic().apply { isPinned = true }))
+    assertTrue(session.snapshot.isEmpty)
+    assertFalse(session.snapshot.endReached)
+    assertNull(session.snapshot.error)
+    session.loadMore()
+    val next = backend.next<TdApi.GetForumTopics>()
+    assertEquals(17, (next.request as TdApi.GetForumTopics).offsetForumTopicId)
+    next.reply(page(topic(18, name = "Alpha Beta Gamma")))
+    assertEquals(listOf(18), ids(session))
+    session.loadMore()
+    backend.next<TdApi.GetForumTopics>().reply(page())
+    assertTrue(session.snapshot.endReached)
+  }
+
+  @Test fun renamedPinStopsMatchingWithoutWaitingForSearchRefresh() {
+    val session = open("Alpha")
+    backend.next<TdApi.GetForumTopics>().reply(page(topic().apply { isPinned = true }))
+    store.updateInfo(topic(name = "Beta").info)
+    assertTrue(session.snapshot.isEmpty)
+    assertTrue(session.snapshot.stale)
+    assertEquals("Beta", store.cachedTopic(key)!!.info.name)
+  }
+
+  @Test fun queryFilteringAndPinnedRanksAreIndependentPerList() {
+    val first = topic(18, order = 1, name = "Alpha Beta").apply { isPinned = true }
+    val second = topic(19, order = 9, name = "Alpha").apply { isPinned = true }
+    val all = loaded(first, second)
+    val search = open("Beta")
+    backend.next<TdApi.GetForumTopics>().reply(page(second, first))
+    assertEquals(listOf(18), ids(search))
+    assertEquals(listOf(18, 19), ids(all))
+    search.setQuery("")
+    assertEquals(listOf(18, 19), ids(search))
   }
 
   @Test fun shortPageAndApproximateCountDoNotEndPagination() {

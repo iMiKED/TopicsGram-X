@@ -37,7 +37,7 @@
   <string name="ForumUnpinTopic">Unpin topic</string>
   <string name="ForumMovePinUp">Move pinned topic up</string>
   <string name="ForumMovePinDown">Move pinned topic down</string>
-  <string name="ForumPinLimit">You can pin up to %1$d topics. Unpin a topic first.</string>
+  <string name="ForumPinLimit">Pinned topic limit: %1$d. Unpin a topic first.</string>
   <string name="ForumPinAtEdge">The topic is already at this end of the pinned list, or is no longer pinned.</string>
   <string name="ForumDeleteTopic">Delete topic</string>
   <string name="ForumClearGeneral">Clear General history</string>
@@ -60,9 +60,14 @@
   <string name="ForumTopicsEmpty">No topics found</string>
   <string name="ForumTopicsLoadFailed">Could not load topics. Tap to retry</string>
   <string name="ForumTopicsStale">Showing cached topics. Tap to refresh</string>
-  <string name="ForumUnreadCounts">%1$d unread messages, %2$d mentions, %3$d reactions, %4$d poll votes</string>
+  <string name="ForumUnreadCounts">Unread messages: %1$d; mentions: %2$d; reactions: %3$d; poll votes: %4$d</string>
   <string name="ForumTopicLoading">Loading topic…</string>
   <string name="ForumTopicClosed">Topic closed</string>
+  <string name="ForumTopicCreated">Topic created</string>
+  <string name="ForumTopicUpdated">Topic updated</string>
+  <string name="ForumTopicReopened">Topic reopened</string>
+  <string name="ForumGeneralHidden">General topic hidden</string>
+  <string name="ForumGeneralShown">General topic shown</string>
   <string name="ForumTopicUnavailable">Topic unavailable. Tap to retry</string>
   <string name="ForumTopicLoadFailed">Could not load topic. Tap to retry</string>
   <string name="language_continueInLanguage">Continue in English</string>

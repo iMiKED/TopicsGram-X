@@ -3,6 +3,7 @@ package org.thunderdog.challegram.data
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.*
 import org.junit.Test
+import org.thunderdog.challegram.R
 import org.thunderdog.challegram.ui.MessagesController.ReplyInfo
 import tgx.td.data.MessageWithProperties
 
@@ -12,6 +13,25 @@ class ForumPresentationTest {
   }
   private fun reply(message: TdApi.Message) = ReplyInfo(null, MessageWithProperties(message, TdApi.MessageProperties()), null, 0, "")
   private fun forumId(topic: TdApi.MessageTopic?) = (topic as TdApi.MessageTopicForum).forumTopicId
+
+  @Test fun createdTopicHasServicePreview() {
+    assertEquals(R.string.ForumTopicCreated, ForumPresentation.servicePreview(TdApi.MessageForumTopicCreated()))
+  }
+  @Test fun editedTopicHasServicePreview() {
+    assertEquals(R.string.ForumTopicUpdated, ForumPresentation.servicePreview(TdApi.MessageForumTopicEdited()))
+  }
+  @Test fun closedAndReopenedPreviewsAreDistinct() {
+    assertEquals(R.string.ForumTopicClosed, ForumPresentation.servicePreview(TdApi.MessageForumTopicIsClosedToggled(true)))
+    assertEquals(R.string.ForumTopicReopened, ForumPresentation.servicePreview(TdApi.MessageForumTopicIsClosedToggled(false)))
+  }
+  @Test fun hiddenAndShownGeneralPreviewsAreDistinct() {
+    assertEquals(R.string.ForumGeneralHidden, ForumPresentation.servicePreview(TdApi.MessageForumTopicIsHiddenToggled(true)))
+    assertEquals(R.string.ForumGeneralShown, ForumPresentation.servicePreview(TdApi.MessageForumTopicIsHiddenToggled(false)))
+  }
+  @Test fun otherMessagesKeepTheirOriginalPreview() {
+    assertEquals(0, ForumPresentation.servicePreview(TdApi.MessageText()))
+    assertEquals(0, ForumPresentation.servicePreview(TdApi.MessageUnsupported()))
+  }
 
   @Test fun commonStreamShowsForumButton() {
     assertTrue(ForumPresentation.showTopicButton(TdApi.MessageTopicForum(17), null, false, false, false))

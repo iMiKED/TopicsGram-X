@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.component.chat.ForumTopicView;
+import org.thunderdog.challegram.component.chat.ForumTopicListDiff;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.navigation.HeaderView;
@@ -116,7 +117,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
     if (session != null) session.setQuery(query);
   }
 
-  @Override protected void onSearchInputChanged (String query) { setQuery(query); }
+  @Override protected void onSearchInputChanged (String query) { super.onSearchInputChanged(query); setQuery(query); }
   @Override protected void onLeaveSearchMode () { setQuery(""); }
   @Override public void onFocus () {
     super.onFocus();
@@ -126,7 +127,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
       openSearchMode();
       setSearchInput(savedQuery);
     }
-    if (adapter != null) adapter.notifyDataSetChanged(); // Local drafts may have changed while a topic was open.
+    rebindRows(); // Local drafts may have changed while a topic was open.
     TdApi.Chat chat = tdlib.chat(getChatId());
     if (chat != null && !chat.viewAsTopics) getRecyclerView().post(() -> ForumTopicUi.openViewMode(this, false));
   }
@@ -152,21 +153,23 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   }
 
   @Override public void onNotificationSettingsChanged (long chatId, TdApi.ChatNotificationSettings settings) {
-    runOnUiThreadOptional(() -> { if (adapter != null) adapter.notifyDataSetChanged(); });
+    if (chatId == getChatId()) runOnUiThreadOptional(this::rebindRows);
   }
   @Override public void onNotificationSettingsChanged (TdApi.NotificationSettingsScope scope, TdApi.ScopeNotificationSettings settings) {
-    runOnUiThreadOptional(() -> { if (adapter != null) adapter.notifyDataSetChanged(); });
+    if (tgx.td.Td.matchesScope(tdlib.chatType(getChatId()), scope)) runOnUiThreadOptional(this::rebindRows);
   }
+
+  private void rebindRows () { if (adapter != null) adapter.notifyItemRangeChanged(0, adapter.getItemCount()); }
 
   @Override public void onConfigurationChanged (Configuration configuration) {
     super.onConfigurationChanged(configuration);
-    if (adapter != null) adapter.notifyDataSetChanged();
+    rebindRows();
     if (getRecyclerView() != null) getRecyclerView().requestLayout();
   }
 
   @Override public void handleLanguagePackEvent (int event, int arg1) {
     super.handleLanguagePackEvent(event, arg1);
-    if (adapter != null) adapter.notifyDataSetChanged();
+    rebindRows();
   }
 
   @Override public void onScrollToTopRequested () {
@@ -231,15 +234,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
     void update (ForumTopicStore.Snapshot value) {
       List<TdApi.ForumTopic> old = topics;
       List<TdApi.ForumTopic> next = value != null ? value.topics : Collections.emptyList();
-      DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
-        @Override public int getOldListSize () { return old.size()+1; }
-        @Override public int getNewListSize () { return next.size()+1; }
-        @Override public boolean areItemsTheSame (int a, int b) {
-          if (a == old.size() || b == next.size()) return a == old.size() && b == next.size();
-          return old.get(a).info.forumTopicId == next.get(b).info.forumTopicId;
-        }
-        @Override public boolean areContentsTheSame (int a, int b) { return false; }
-      });
+      DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new ForumTopicListDiff(old, next));
       topics = next;
       diff.dispatchUpdatesTo(this);
     }
