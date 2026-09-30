@@ -119,6 +119,31 @@ class ForumTopicMutationReconciliationTest {
     assertEquals(2, f.backend.count<TdApi.GetForumTopic>())
   }
 
+  @Test fun conflictingInfoAfterPointStartCannotLetNewerPageConsumeMutation() {
+    val f = Fixture(initiallyClosed = true)
+    f.write(17, false)
+    f.backend.advance()
+    val point = f.point(17)
+    // An overlapping page emits old metadata after the post-write point read starts.
+    f.store.updateInfo(f.value(17, true).info)
+    point.reply(f.value(17)) // Fresh OPEN reply must not consume the write's barrier.
+
+    f.session.refresh() // A later page can agree with that old metadata.
+    val stale = f.value(17, true).apply {
+      lastMessage!!.content = TdApi.MessageForumTopicIsClosedToggled(false)
+    }
+    f.backend.calls.last { it.request is TdApi.GetForumTopics }.reply(page(stale, f.value(18)))
+    f.backend.advance()
+    assertEquals("Conflicting later info still requires a point read after the newer page", 2, f.backend.count<TdApi.GetForumTopic>())
+    f.point(17).reply(f.value(17))
+    f.backend.advance(60000)
+    assertFalse(f.store.cachedTopic(Key(100, 17))!!.info.isClosed)
+    assertFalse((f.store.cachedTopic(Key(100, 17))!!.lastMessage!!.content as TdApi.MessageForumTopicIsClosedToggled).isClosed)
+    assertFalse(f.session.snapshot.stale)
+    assertNull(f.session.snapshot.error)
+    assertEquals(2, f.backend.count<TdApi.GetForumTopic>())
+  }
+
   @Test fun postWriteReadErrorOrTimeoutDoesNotAutomaticallyRetry() {
     for (timeout in listOf(false, true)) {
       val f = Fixture()

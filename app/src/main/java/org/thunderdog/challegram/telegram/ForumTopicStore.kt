@@ -533,7 +533,14 @@ class ForumTopicStore(
     if (result is TdApi.ForumTopic && result.info?.chatId == key.chatId && result.info.forumTopicId == key.forumTopicId) {
       // A superseded response has not reconciled the mutation. Keep its required read
       // queued even if a newer (but cached) page made dirtyStamp <= fullStamp.
-      if (afterMutation && request.stamp >= maxOf(record.fullStamp, record.removedStamp)) record.mutationStamp = 0L
+      // TDLib can emit metadata from an overlapping older page after this read
+      // started. merge() preserves those later events, so the point reply has not
+      // reconciled the write unless it agrees with them (or started after them).
+      // Otherwise a following cached page could consume the remaining dirty work.
+      if (afterMutation && request.stamp >= maxOf(record.fullStamp, record.removedStamp) &&
+          record.eventStamp <= request.stamp &&
+          (record.infoStamp <= request.stamp || sameInfo(result.info, record.info)) &&
+          (record.updateStamp <= request.stamp || sameUpdate(result, record.update))) record.mutationStamp = 0L
       if (merge(key, result, request.stamp)) {
         for (state in lists.values) {
           if (state.key.chatId == key.chatId && state.key.query.isEmpty() && state.sessions.any { it.live() }) state.ids.add(key)
