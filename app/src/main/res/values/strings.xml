@@ -52,6 +52,7 @@
   <string name="ForumMuteForever">Mute forever</string>
   <string name="ForumRefresh">Refresh topics</string>
   <string name="ForumTopicTitle">Topic</string>
+  <string name="ForumChatTopics">Topics</string>
   <string name="ForumGeneral">General</string>
   <string name="ForumPinned">Pinned</string>
   <string name="ForumHidden">Hidden</string>

@@ -76,6 +76,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
   private NavigationProcessor processor;
 
   private RootLayout rootView;
+  private ForumNavigationContainer forumContainer;
   private NavigationLayout contentWrapper;
   private HeaderView headerView;
   private ShadowView shadowView, shadowTop;
@@ -406,7 +407,21 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
 
     Lang.addLanguageListener(this);
 
-    return rootView;
+    forumContainer = new ForumNavigationContainer(context, this, rootView);
+    return forumContainer;
+  }
+
+  public ForumNavigationContainer forumContainer () {
+    getValue();
+    return forumContainer;
+  }
+
+  public boolean isForumRailTouch (float x) {
+    return forumContainer != null && forumContainer.isRailTouch(x);
+  }
+
+  public float contentTouchX (float x) {
+    return forumContainer != null ? forumContainer.contentX(x) : x;
   }
 
   public void addViewUnderHeader (View view) {
@@ -429,6 +444,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
 
   @Override
   public void onThemeColorsChanged (boolean areTemp, ColorState state) {
+    if (forumContainer != null) forumContainer.refresh();
     ViewController<?> c;
     if (isAnimating && ((translatingForward && translationFactor == 1f) || (!translatingForward && translationFactor == 0f))) {
       c = getPreviousStackItem();
@@ -456,6 +472,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
 
   public void destroy () {
     isDestroyed = true;
+    if (forumContainer != null) forumContainer.destroy();
     ThemeManager.instance().removeThemeListener(this);
     getStack().clear(this);
     clearChildWrappers();
@@ -1625,6 +1642,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
 
   @Override
   public void onLanguagePackEvent (int event, int arg1) {
+    if (forumContainer != null) forumContainer.refresh();
     boolean directionChanged = Lang.hasDirectionChanged(event, arg1);
 
     if (directionChanged) {
@@ -1651,6 +1669,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
   }
 
   private void setBottomInset (int bottomInset, int bottomInsetWithoutIme) {
+    if (forumContainer != null) forumContainer.setBottomInset(bottomInsetWithoutIme);
     if (this.bottomInset != bottomInset || this.bottomInsetWithoutIme != bottomInsetWithoutIme) {
       this.bottomInset = bottomInset;
       this.bottomInsetWithoutIme = bottomInsetWithoutIme;

@@ -884,6 +884,14 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
     return chatsView != null && liveLocationHelper != null && liveLocationHelper.isVisible();
   }
 
+  /** Adapter decorations/archive are not part of the folder projection shown by the forum rail. */
+  public int getForumRailPosition () {
+    if (chatsView == null || adapter == null || !(chatsView.getLayoutManager() instanceof LinearLayoutManager)) return 0;
+    int position = ((LinearLayoutManager) chatsView.getLayoutManager()).findFirstVisibleItemPosition();
+    int chatIndex = adapter.getChatIndexByItemPosition(position);
+    return Math.max(0, chatIndex - (adapter.hasArchive() ? 1 : 0));
+  }
+
   public void onLiveLocationClick (float x, float y) {
     if (needLiveLocationClick() && chatsView != null) {
       RecyclerView.LayoutManager manager = chatsView.getLayoutManager();
@@ -1038,7 +1046,7 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
         return;
       }
 
-      int totalScrollBy = chatItemHeight * firstVisiblePosition;
+      int totalScrollBy = chatItemHeight * firstVisiblePosition + adapter.getChatHeightDeltaBefore(firstVisiblePosition);
       int separatorItemCount = firstVisiblePosition;
       int chatsCount = adapter.getChatCount();
 
@@ -1082,7 +1090,7 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
 
     int chatsCount = adapter.getChatCount();
 
-    int totalScrollBy = chatHeight * chatsCount;
+    int totalScrollBy = chatHeight * chatsCount + adapter.getChatHeightDeltaBefore(adapter.getItemCount());
     int separatorItemCount = chatsCount;
 
     if (adapter.hasArchive() && chatsCount > 1) {
@@ -3019,6 +3027,9 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
 
   @Override
   public void onSupergroupUpdated (final TdApi.Supergroup supergroup) {
+    runOnUiThreadOptional(() -> {
+      if (adapter != null) adapter.checkChatListMode();
+    });
     if (!TD.isMember(supergroup.status)) {
       runOnUiThreadOptional(() -> {
         checkChatSelected(ChatId.fromSupergroupId(supergroup.id));

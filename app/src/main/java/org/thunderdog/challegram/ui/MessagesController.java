@@ -1904,7 +1904,9 @@ public class MessagesController extends ViewController<MessagesController.Argume
   public void onChatHeaderClick () {
     if (chat != null) {
       if (forumTopicContext != null && !inPreviewSearchMode()) {
-        forumTopicUi().showTopicMenu(forumTopicContext.topicId);
+        ForumTopicProfileController profile = new ForumTopicProfileController(context(), tdlib);
+        profile.setArguments(new ForumTopicProfileController.Arguments(chat.id, forumTopicContext.topicId, chatList()));
+        navigateTo(profile);
         return;
       }
       if (Test.NEED_CLICK) {
@@ -9034,7 +9036,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (isInForceTouchMode()) {
       return Screen.currentWidth() - ForceTouchView.getMatchParentHorizontalMargin() * 2;
     } else {
-      return Screen.currentWidth();
+      if (contentView != null && contentView.getMeasuredWidth() > 0) return contentView.getMeasuredWidth();
+      return context.navigation().forumContainer().targetContentWidth();
     }
   }
 

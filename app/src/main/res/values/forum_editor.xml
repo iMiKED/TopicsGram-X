@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <item type="id" name="controller_forumTopicEdit" />
+  <item type="id" name="menu_forumTopicEdit" />
+  <item type="id" name="btn_forumTopicSave" />
+  <string name="ForumEditorNew">New Topic</string>
+  <string name="ForumEditorEdit">Edit Topic</string>
+  <string name="ForumEditorCreate">Create</string>
+  <string name="ForumEditorRetry">Retry</string>
+  <string name="ForumEditorCard">Choose a topic name and icon</string>
+  <string name="ForumEditorNameHint">What do you want to discuss?</string>
+  <string name="ForumEditorIconHeading">Select Topic Icon</string>
+  <string name="ForumEditorDefaults">Topic icons</string>
+  <string name="ForumEditorSearch">Search emoji</string>
+  <string name="ForumEditorRegular">Use ordinary icon</string>
+  <string name="ForumEditorPreview">Topic icon preview</string>
+  <string name="ForumEditorSelected">%1$s, selected</string>
+  <string name="ForumEditorLocked">%1$s, Premium required</string>
+  <string name="ForumEditorCustomEmoji">Custom emoji</string>
+  <string name="ForumEditorEmptyName">Enter a topic name.</string>
+  <string name="ForumEditorLongName">Use at most 128 characters.</string>
+  <string name="ForumEditorNameCount">%1$d / 128</string>
+  <string name="ForumEditorGeneralHint">The General topic icon cannot be changed.</string>
+  <string name="ForumEditorColorLocked">The original icon color cannot be changed after creation.</string>
+  <string name="ForumEditorEditHint">%1$s\n%2$s</string>
+  <string name="ForumEditorColorInvalid">Choose one of the available icon colors.</string>
+  <string name="ForumEditorPremiumHint">Topic icons are available to everyone. Other custom emoji require Premium.</string>
+  <string name="ForumEditorPremiumRequired">This emoji requires Premium. Choose a topic icon or the ordinary icon.</string>
+  <string name="ForumEditorIconLoading">Checking available topic icons…</string>
+  <string name="ForumEditorEmojiLoading">Loading emoji…</string>
+  <string name="ForumEditorEmojiEmpty">No emoji found. Try another search or set.</string>
+  <string name="ForumEditorEmojiError">Emoji could not be loaded. Your form is unchanged.</string>
+  <string name="ForumEditorEmojiPartial">Some emoji sections could not be loaded. Retry to load them.</string>
+  <string name="ForumEditorLoading">Loading topic…</string>
+  <string name="ForumEditorUnavailable">This topic is unavailable or you no longer have permission to edit it.</string>
+  <string name="ForumEditorCreateUnavailable">You no longer have permission to create topics here.</string>
+  <string name="ForumEditorLoadError">The topic could not be loaded. Your changes are preserved.</string>
+  <string name="ForumEditorServerError">Could not save the topic. Your changes are preserved. Try again when connected.</string>
+  <string name="ForumEditorPermissionError">The server rejected this change. Check your permissions before trying again.</string>
+  <string name="ForumEditorDiscardTitle">Discard changes?</string>
+  <string name="ForumEditorDiscardText">Your changes to this topic will be lost.</string>
+  <string name="ForumEditorDiscard">Discard</string>
+  <string name="ForumEditorKeepEditing">Keep editing</string>
+  <string name="ForumEditorSending">Saving…</string>
+  <string name="ForumEditorSendingBack">The request is still being checked. Please wait.</string>
+  <string name="ForumEditorUnknown">The Create result is unknown. Check for the topic before starting another Create; the original request may still finish.</string>
+  <string name="ForumEditorCheckResult">Check result</string>
+  <string name="ForumEditorChecking">Checking existing topics…</string>
+  <string name="ForumEditorCheckFailed">The result could not be checked. Connect and check again; Create will not be repeated.</string>
+  <string name="ForumEditorNoMatch">No matching topic is visible yet. Check again later or return to the topic list. This does not prove that Create failed.</string>
+  <string name="ForumEditorMatches">Possible matches found. Open the topic you intended to create; these may include older topics with the same name.</string>
+  <string name="ForumEditorOpenMatch">Open matching topic %1$d</string>
+  <string name="ForumEditorUnknownLeave">The original Create request may still finish. Leaving will not cancel it. Check the topic list before creating again.</string>
+  <string name="ForumEditorLeave">Return</string>
+  <string name="ForumEditorRestoredEdit">Your changes were restored. Check the current topic before saving again.</string>
+</resources>

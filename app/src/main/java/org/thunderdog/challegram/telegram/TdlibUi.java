@@ -2207,6 +2207,9 @@ public class TdlibUi extends Handler {
       return;
     }
 
+    if (tdlib.isForum(chat.id) && !onlyScheduled && messageThread == null) {
+      navigation.forumContainer().enable(tdlib, chatList);
+    }
     if (ForumNavigation.openTopicList(tdlib.isForum(chat.id), chat.viewAsTopics, messageTopicId, messageThread != null,
         params != null && params.highlightSet, onlyScheduled, filter != null,
         shareItem != null || forceDraft != null || voiceChatInvitation != null || params != null && !StringUtils.isEmpty(params.searchQuery),
@@ -2379,6 +2382,7 @@ public class TdlibUi extends Handler {
     if (!(current instanceof ForumTopicsController && current.tdlib() == tdlib && current.getChatId() == chat.id)) {
       ForumTopicsController controller = new ForumTopicsController(context.context(), tdlib);
       controller.setArguments(new ForumTopicsController.Arguments(chat.id, chatList));
+      navigation.forumContainer().restoreTopics(controller);
       controller.postOnAnimationReady(() -> tdlib.context().changePreferredAccountId(tdlib.id(), TdlibManager.SWITCH_REASON_CHAT_OPEN, null));
       if (params != null && (params.options & CHAT_OPTION_PASSCODE_UNLOCKED) != 0) {
         controller.addOneShotFocusListener(() -> {

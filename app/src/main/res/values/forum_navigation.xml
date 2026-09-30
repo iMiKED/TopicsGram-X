@@ -1,0 +1,5 @@
+<resources>
+  <string name="ForumRailChats">Chats</string>
+  <string name="ForumRailMuted">Notifications muted</string>
+  <string name="ForumRailUnread">Unread messages: %1$d</string>
+</resources>

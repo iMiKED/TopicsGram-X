@@ -8,6 +8,7 @@ import java.util.List;
 
 /** Store rows are immutable snapshots. A stale/loading change must not rebind every topic. */
 public final class ForumTopicListDiff extends DiffUtil.Callback {
+  public static final Object SELECTION_PAYLOAD = new Object();
   private final List<TdApi.ForumTopic> before, after;
 
   public ForumTopicListDiff (List<TdApi.ForumTopic> before, List<TdApi.ForumTopic> after) {

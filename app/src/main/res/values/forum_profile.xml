@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <item type="id" name="controller_forumTopicProfile" />
+  <item type="id" name="controller_forumTopicNotifications" />
+  <item type="id" name="menu_forumTopicProfile" />
+  <item type="id" name="forum_profile_edit" />
+  <item type="id" name="forum_profile_more" />
+  <item type="id" name="forum_profile_retry" />
+  <string name="ForumProfileMessage">Messages</string>
+  <string name="ForumProfileMore">More topic actions</string>
+  <string name="ForumProfileGroupLink">%1$s ›</string>
+  <string name="ForumProfileSettingValue">%1$s\n%2$s</string>
+  <string name="ForumProfileMute">Mute</string>
+  <string name="ForumProfileUnmute">Unmute</string>
+  <string name="ForumProfileLoading">Loading topic…</string>
+  <string name="ForumProfileUnavailable">This topic is no longer available. Your previous history has not been replaced.</string>
+  <string name="ForumProfileRetry">Could not load this topic. Tap to retry.</string>
+  <string name="ForumProfileTopicLink">Topic link</string>
+  <string name="ForumProfileLinkHint">A topic link does not grant access to a private group.</string>
+  <string name="ForumProfileMediaLoading">Checking topic materials…</string>
+  <string name="ForumProfileMediaEmpty">No materials in this topic yet.</string>
+  <string name="ForumProfileMediaRetry">Could not load some topic materials. Tap to retry.</string>
+  <string name="ForumProfileMediaOffline">Topic materials are unavailable offline. Tap to retry when connected.</string>
+  <string name="ForumProfileMediaUnknown">The material count is not known yet. Tap to retry.</string>
+  <string name="ForumProfileMedia">Media</string>
+  <string name="ForumProfileFiles">Files</string>
+  <string name="ForumProfileLinks">Links</string>
+  <string name="ForumProfileMusic">Music</string>
+  <string name="ForumProfilePolls">Polls</string>
+  <string name="ForumProfileGifs">GIFs</string>
+  <string name="ForumProfileVoice">Voice</string>
+  <string name="ForumProfilePollOpen">Open poll</string>
+  <string name="ForumProfilePollClosed">Closed poll</string>
+  <string name="ForumProfilePollVoters">Voters: %1$d</string>
+  <string name="ForumProfilePollCount">Polls: %1$d</string>
+  <string name="ForumProfileLeaveGroup">Leave group</string>
+  <string name="ForumProfileDeleteGroup">Delete group for everyone</string>
+  <string name="ForumProfileDeleteGroupConfirm">Delete “%1$s” and all its messages for everyone? This deletes the entire group, not just this topic.</string>
+  <string name="ForumProfileDeleteTopicConfirm">Delete topic “%1$s” and all its messages? Other topics in “%2$s” will not be deleted.</string>
+  <string name="ForumProfileGeneralHint">General cannot be deleted as an ordinary topic.</string>
+  <string name="ForumProfileDefault">Use group settings</string>
+  <string name="ForumProfileEnabled">Enabled for this topic</string>
+  <string name="ForumProfileDisabled">Disabled for this topic</string>
+  <string name="ForumProfilePreview">Message preview</string>
+  <string name="ForumProfilePinnedNotifications">Pinned message notifications</string>
+  <string name="ForumProfileMentionNotifications">Mention notifications</string>
+  <string name="ForumProfileSound">Notification sound</string>
+  <string name="ForumProfileSilent">No sound</string>
+  <string name="ForumProfileCustomSound">Custom sound</string>
+  <string name="ForumProfileSettingsHint">These settings affect only this topic. Inherited values follow the parent group. Story settings are unchanged.</string>
+  <string name="ForumProfileDuration">Muted for %1$s</string>
+</resources>

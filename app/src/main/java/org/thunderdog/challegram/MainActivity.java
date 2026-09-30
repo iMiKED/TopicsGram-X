@@ -1132,6 +1132,7 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     }
 
     outState.putInt(BUNDLE_ACCOUNT_ID, account.id);
+    navigation.forumContainer().saveState(outState);
 
     /*if (current.getId() == R.id.controller_messages ||
        (current.getId() == R.id.controller_passcode && !((PasscodeController) current).inSetupMode() && current.getChatId() != 0)) {
@@ -1201,6 +1202,7 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     }*/
 
     if (restoreType == BUNDLE_RESTORE_TYPE_COMPLEX) {
+      navigation.forumContainer().restoreState(in, account.tdlib());
       int stackSize = in.getInt(BUNDLE_ITEM_COUNT);
       if (stackSize <= 0) {
         return INSTANCE_NOT_RESTORED;
@@ -1254,6 +1256,12 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
       restore = new MessagesController(context, tdlib);
     } else if (id == R.id.controller_forumTopics) {
       restore = new ForumTopicsController(context, tdlib);
+    } else if (id == R.id.controller_forumTopicProfile) {
+      restore = new org.thunderdog.challegram.ui.ForumTopicProfileController(context, tdlib);
+    } else if (id == R.id.controller_forumTopicEdit) {
+      restore = new org.thunderdog.challegram.ui.ForumTopicEditController(context, tdlib);
+    } else if (id == R.id.controller_forumTopicNotifications) {
+      restore = new org.thunderdog.challegram.ui.ForumTopicNotificationController(context, tdlib);
     } else if (id == R.id.controller_profile) {
       restore = new ProfileController(context, tdlib);
     } else if (id == R.id.controller_themeSettings) {
