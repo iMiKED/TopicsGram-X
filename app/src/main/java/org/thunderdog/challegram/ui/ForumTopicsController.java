@@ -81,6 +81,8 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   @Override public CharSequence getName () { return tdlib.chatTitle(getChatId()); }
   @Override protected int getRecyclerBackground () { return ColorId.filling; }
   @Override protected int getMenuId () { return R.id.menu_forumTopics; }
+  // Selection buttons depend on the current intersection and available pane width.
+  @Override protected boolean allowMenuReuse () { return false; }
   @Override protected int getSearchMenuId () { return R.id.menu_clear; }
   @Override protected int getSearchHint () { return R.string.ForumSearchTopics; }
   @Override protected String getSearchStartQuery () { return query; }
@@ -257,7 +259,9 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
     if (menuId != R.id.menu_forumSelection) return;
     EnumSet<Action> available = selectionActions();
     headerActions.clear();
-    int width = getRecyclerView() != null ? getRecyclerView().getWidth() : 0;
+    // The forum body reserves rail space, but its selection header spans the whole screen.
+    HeaderView header = context().navigation().getHeaderView();
+    int width = header != null ? header.getMeasuredWidth() : 0;
     if (width <= 0) width = Screen.dp(context().getResources().getConfiguration().screenWidthDp);
     int slots = ForumTopicSelection.primaryActionSlots(width / context().getResources().getDisplayMetrics().density,
       context().getResources().getConfiguration().fontScale);
@@ -278,19 +282,23 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
       }
     }
     View more = menu.findViewById(R.id.menu_btn_more);
-    if (more != null) { more.setEnabled(topicUi == null || !topicUi.isBusy()); more.setContentDescription(Lang.getString(R.string.ForumSelectionActions)); }
+    if (more != null) {
+      more.setVisibility(ForumTopicActionPresentation.overflowActions(available, headerActions).isEmpty() ? View.GONE : View.VISIBLE);
+      more.setEnabled(topicUi == null || !topicUi.isBusy());
+      more.setContentDescription(Lang.getString(R.string.ForumSelectionActions));
+    }
   }
 
   private void showSelectionMenu () {
     if (topicUi.isBusy() || selection == null || selection.isEmpty()) return;
-    EnumSet<Action> available = selectionActions();
-    available.removeAll(headerActions); // No duplicate Pin in overflow.
+    EnumSet<Action> available = ForumTopicActionPresentation.overflowActions(selectionActions(), headerActions);
+    // Permissions/state may change between rendering the ellipsis and tapping it.
+    if (available.isEmpty()) { updateSelectionHeader(); return; }
     ArrayList<Action> actions = new ArrayList<>(available);
     String[] labels = new String[actions.size()];
     for (int i = 0; i < labels.length; i++) labels[i] = Lang.getString(ForumTopicUi.actionLabel(actions.get(i)));
     android.app.AlertDialog.Builder dialog = new android.app.AlertDialog.Builder(context(), Theme.dialogTheme()).setTitle(Lang.getString(R.string.ForumSelectionActions));
-    if (actions.isEmpty()) dialog.setMessage(Lang.getString(R.string.ForumSelectionNoActions));
-    else dialog.setItems(labels, (d, which) -> runSelectionAction(actions.get(which)));
+    dialog.setItems(labels, (d, which) -> runSelectionAction(actions.get(which)));
     showAlert(dialog.setNegativeButton(Lang.getString(R.string.Cancel), null));
   }
 
@@ -300,6 +308,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
     for (TdApi.ForumTopic t : selection.topics()) targets.add(new ForumTopicActions.BatchTarget(t.info.forumTopicId, t.info.name));
     // ForumTopicUi guards the confirmation/start interval and duplicate submissions.
     topicUi.runBatch(action, targets, result -> {
+      // A full success exits selection silently; failed/uncertain targets remain selected.
       for (ForumTopicActions.BatchOutcome outcome : result.outcomes) if (outcome.getSuccessful()) removeSelected(outcome.target.topicId);
       updateSelectionHeader();
     });

@@ -317,12 +317,12 @@ public final class ForumTopicUi implements ChatListener {
       case ForumTopicActions.BATCH_UNAVAILABLE: return Lang.getString(R.string.ForumActionUnavailable);
       case ForumTopicActions.BATCH_PIN_LIMIT: return Lang.getString(R.string.ForumPinLimit, tdlib.options().pinnedForumTopicCountMax);
       case ForumTopicActions.BATCH_PIN_PREFIX: return Lang.getString(R.string.ForumSelectionPinsUnavailable);
-      case ForumTopicActions.BATCH_PREFLIGHT_ABORTED: return Lang.getString(R.string.ForumSelectionPreflightAborted);
-      default: return TD.toErrorString(error);
+      case ForumTopicActions.BATCH_PREFLIGHT_ABORTED: return Lang.getString(R.string.ForumActionUnavailable);
+      default: return ForumTopicActionPresentation.readableError(error, TD.translateError(error.code, error.message), Lang.getString(R.string.LaunchSubtitleFatalError));
     }
   }
 
-  /** Confirmation and results always use this immutable target list, never the current selection. */
+  /** Confirmation and retry always use this immutable target list, never the current selection. */
   public void runBatch (Action action, List<ForumTopicActions.BatchTarget> input, Consumer<ForumTopicActions.BatchResult> completed) {
     if (!isActive() || busy || input.isEmpty()) return;
     ArrayList<ForumTopicActions.BatchTarget> targets = new ArrayList<>(input);
@@ -350,7 +350,7 @@ public final class ForumTopicUi implements ChatListener {
         if (batchProgress != null) { batchProgress.dismiss(); batchProgress = null; }
         if (!isActive()) return;
         if (completed != null) completed.accept(result);
-        showBatchResult(result, completed);
+        showBatchError(result, completed);
       }
     });
     if (batch == null && busy) {
@@ -360,18 +360,17 @@ public final class ForumTopicUi implements ChatListener {
     }
   }
 
-  private void showBatchResult (ForumTopicActions.BatchResult result, Consumer<ForumTopicActions.BatchResult> completed) {
-    StringBuilder success = new StringBuilder(), failure = new StringBuilder();
-    for (ForumTopicActions.BatchOutcome outcome : result.outcomes) {
-      if (outcome.getSuccessful()) success.append("\n• ").append(outcome.target.name);
-      else failure.append("\n• ").append(outcome.target.name).append(": ").append(outcome.uncertain ? Lang.getString(R.string.ForumSelectionUncertain) : batchError(outcome.error));
+  private void showBatchError (ForumTopicActions.BatchResult result, Consumer<ForumTopicActions.BatchResult> completed) {
+    ForumTopicActionPresentation.BatchFailure failure = ForumTopicActionPresentation.failure(result);
+    if (failure == null) return;
+    String text = failure.error != null ? batchError(failure.error) : Lang.getString(R.string.LaunchSubtitleFatalError);
+    if (failure.uncertain) {
+      String warning = Lang.getString(R.string.ForumSelectionUncertain);
+      text = failure.retryTargets.isEmpty() ? warning : text + "\n\n" + warning;
     }
-    String text = (success.length() > 0 ? Lang.getString(R.string.ForumSelectionSucceeded) + success + "\n\n" : "") +
-      (failure.length() > 0 ? Lang.getString(R.string.ForumSelectionFailed) + failure : "");
     AlertDialog.Builder dialog = new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
-      .setTitle(Lang.getString(actionLabel(result.action))).setMessage(text.trim()).setPositiveButton(Lang.getString(R.string.OK), null);
-    List<ForumTopicActions.BatchTarget> retry = result.failedTargets();
-    if (!retry.isEmpty()) dialog.setNeutralButton(Lang.getString(R.string.ForumSelectionRetryFailed), (d, which) -> runBatch(result.action, retry, completed));
+      .setTitle(Lang.getString(R.string.Error)).setMessage(text).setPositiveButton(Lang.getString(R.string.OK), null);
+    if (!failure.retryTargets.isEmpty()) dialog.setNeutralButton(Lang.getString(R.string.ForumSelectionRetryFailed), (d, which) -> runBatch(result.action, failure.retryTargets, completed));
     owner.showAlert(dialog);
   }
 
