@@ -23,6 +23,13 @@ public final class ForumRailLayout {
     return Math.round(railWidth * Math.max(0f, Math.min(1f, reveal)));
   }
 
+  /** A short initial page must not make LinearLayoutManager fill its end gap above the anchor. */
+  public static boolean canRestoreScroll (int count, int position, int offset, int rowHeight, int viewportHeight, boolean endReached) {
+    if (count <= 0 || position < 0 || rowHeight <= 0 || viewportHeight <= 0) return false;
+    if (endReached) return true; // Only the real list end may legitimately clamp the viewport.
+    return position < count && (long) (count - position) * rowHeight + offset >= viewportHeight;
+  }
+
   public static boolean hitRail (int viewportWidth, int occupied, float x, boolean rtl) {
     return occupied > 0 && x >= 0 && x < viewportWidth && (rtl ? x >= viewportWidth - occupied : x < occupied);
   }

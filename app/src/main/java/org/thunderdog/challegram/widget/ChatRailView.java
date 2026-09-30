@@ -3,7 +3,6 @@ package org.thunderdog.challegram.widget;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -16,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
+import org.thunderdog.challegram.data.ForumRailLayout;
 import org.thunderdog.challegram.loader.AvatarReceiver;
 import org.thunderdog.challegram.navigation.ForumRailTransition;
 import org.thunderdog.challegram.support.RippleSupport;
@@ -69,6 +69,15 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
     updateTheme();
     list.addOnScrollListener(new RecyclerView.OnScrollListener() {
       @Override public void onScrolled (@NonNull RecyclerView view, int dx, int dy) { loadMore(); }
+    });
+    list.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+      if (restorePosition >= 0) {
+        // Insets/height are unknown when the rail is created. Do not consume its anchor yet.
+        applyScrollPosition();
+        loadMore();
+      } else {
+        list.setAlpha(1f); // Reveal only after the requested position has actually been laid out.
+      }
     });
     tdlib.listeners().subscribeToSettingsUpdates(this);
     slice.initializeList(this, entries -> {
@@ -135,7 +144,8 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   }
 
   private void loadMore () {
-    if (destroyed || !initialized || loading || !slice.canLoad() || restoreChatId == 0 && restorePosition < chats.size() && layout.findLastVisibleItemPosition() < chats.size() - 6) return;
+    if (destroyed || !initialized || loading || !slice.canLoad() || list.getHeight() <= list.getPaddingTop() + list.getPaddingBottom()) return;
+    if (restorePosition < 0 && layout.findLastVisibleItemPosition() < chats.size() - 6) return;
     loading = true;
     int previousSize = chats.size();
     slice.loadMore(30, () -> dispatch(() -> {
@@ -154,6 +164,7 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   public void restoreScrollPosition (int position, int offset) {
     restoreChatId = 0;
     restorePosition = Math.max(0, position); restoreOffset = offset;
+    list.setAlpha(0f);
     applyScrollPosition();
     loadMore();
   }
@@ -161,19 +172,26 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
     restorePosition = Math.max(0, position);
     restoreOffset = offset;
     restoreChatId = chatId;
+    list.setAlpha(0f);
     applyScrollPosition();
     loadMore();
   }
   private void applyScrollPosition () {
     if (restoreChatId != 0) {
       int position = chats.indexOf(restoreChatId);
-      if (position >= 0) { restorePosition = position; restoreChatId = 0; }
+      if (position >= 0) restorePosition = position;
       else if (!slice.isEndReached()) return;
       else restoreChatId = 0;
     }
-    if (restorePosition >= 0 && !chats.isEmpty() && (restorePosition < chats.size() || slice.isEndReached())) {
+    int viewport = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
+    if (ForumRailLayout.canRestoreScroll(chats.size(), restorePosition, restoreOffset, Screen.dp(64), viewport, slice.isEndReached())) {
       layout.scrollToPositionWithOffset(Math.min(restorePosition, chats.size() - 1), restoreOffset);
       restorePosition = -1;
+      restoreChatId = 0;
+    } else if (chats.isEmpty() && initialized && slice.isEndReached()) {
+      restorePosition = -1;
+      restoreChatId = 0;
+      list.setAlpha(1f);
     }
   }
 
@@ -235,7 +253,8 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
 
   private final class RailRow extends View {
     final AvatarReceiver avatar = new AvatarReceiver(this);
-    final Counter counter = new Counter.Builder().callback(this).outlineColor(ColorId.filling).build();
+    final Counter counter = new Counter.Builder().textSize(ForumRailBadgeLayout.TEXT_SIZE_DP)
+      .callback(this).outlineColor(ColorId.filling).build();
     final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     long chatId;
     RailRow (Context context) {
@@ -279,7 +298,7 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
       avatar.setBounds((int) cx - radius, (int) cy - radius, (int) cx + radius, (int) cy + radius);
       if (avatar.needPlaceholder()) avatar.drawPlaceholder(canvas);
       avatar.draw(canvas);
-      counter.draw(canvas, cx + radius, cy + radius - Screen.dp(3), Gravity.RIGHT, decorations);
+      ForumRailBadgeLayout.draw(canvas, counter, getWidth(), getHeight(), radius, Lang.rtl(), decorations);
     }
   }
 }

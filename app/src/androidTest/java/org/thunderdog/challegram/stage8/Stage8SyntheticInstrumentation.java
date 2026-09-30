@@ -96,6 +96,8 @@ public final class Stage8SyntheticInstrumentation extends Instrumentation {
     ForumNavigationRenderChecks.register(cases);
     ForumRailTransitionChecks.register(cases);
     ForumRailCompositionChecks.register(cases);
+    ForumListRefreshChecks.register(cases);
+    ForumRailBadgeChecks.register(cases);
     ForumEmojiSlotChecks.register(cases);
     org.thunderdog.challegram.ui.ForumTopicEditorSearchChecks.register(cases);
     Handler main = new Handler(Looper.getMainLooper());

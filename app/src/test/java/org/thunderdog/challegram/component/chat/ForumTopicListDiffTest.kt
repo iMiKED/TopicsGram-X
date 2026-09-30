@@ -57,4 +57,11 @@ class ForumTopicListDiffTest {
     assertFalse(diff.areItemsTheSame(0, 0))
     assertTrue(diff.areItemsTheSame(1, 1))
   }
+
+  @Test fun changedContentAndFooterReuseTheirHolderWithoutCrossfade() {
+    val diff = ForumTopicListDiff(listOf(topic()), listOf(topic(name = "Synthetic updated")))
+    assertSame(ForumTopicListDiff.CONTENT_PAYLOAD, diff.getChangePayload(0, 0))
+    assertSame(ForumTopicListDiff.CONTENT_PAYLOAD, diff.getChangePayload(1, 1))
+    assertNotSame(ForumTopicListDiff.SELECTION_PAYLOAD, diff.getChangePayload(0, 0))
+  }
 }

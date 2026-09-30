@@ -420,7 +420,7 @@ public final class ForumTopicsController extends RecyclerViewController<ForumTop
   }
 
   private void rebindRows () {
-    if (adapter != null) adapter.notifyItemRangeChanged(0, adapter.getItemCount());
+    if (adapter != null) adapter.notifyItemRangeChanged(0, adapter.getItemCount(), ForumTopicListDiff.CONTENT_PAYLOAD);
     updateSelectionHeader();
   }
 
