@@ -16,6 +16,7 @@ import android.view.ViewTreeObserver;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -30,6 +31,7 @@ import org.thunderdog.challegram.data.ForumPresentation;
 import org.thunderdog.challegram.data.ForumTopicMedia;
 import org.thunderdog.challegram.data.ForumTopicNotifications;
 import org.thunderdog.challegram.data.ForumTopicPolicy;
+import org.thunderdog.challegram.data.ForumTopicProfileLink;
 import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.navigation.BackHeaderButton;
 import org.thunderdog.challegram.navigation.HeaderView;
@@ -82,6 +84,7 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
   private final ForumTopicMedia.Category[] categories = new ForumTopicMedia.Category[ForumTopicMedia.CATEGORY_COUNT];
   private final SharedBaseController<?>[] pages = new SharedBaseController<?>[ForumTopicMedia.CATEGORY_COUNT];
   private final Parcelable[] restoredPageStates = new Parcelable[ForumTopicMedia.CATEGORY_COUNT];
+  private final ForumTopicProfileLink profileLink = new ForumTopicProfileLink();
   private List<Integer> visibleTabs = Collections.emptyList();
   private int activeTab = -1, restoreTab = -1, restoreScroll;
   private String query = "";
@@ -94,12 +97,14 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
   private TdApi.Error metadataError;
   private ForumTopicUi topicUi;
   private NestedScrollView scroll;
-  private LinearLayout tabs, actions;
+  private LinearLayout tabs, actions, linkRow;
   private HorizontalScrollView tabScroll;
   private FrameLayout materialFrame, iconFrame;
   private TextView title, group, state, materialState, regularIcon;
+  private TextView linkText, linkLabel, linkHint;
+  private ImageView linkCopy;
   private CustomTextView customIcon;
-  private ActionView messageButton, muteButton, pinButton, linkButton;
+  private ActionView messageButton, muteButton, pinButton;
   private View editButton, moreButton;
   private long renderedEmoji = Long.MIN_VALUE;
   private static final int MAX_RECENT_CONTENT = 128, MAX_PENDING_CONTENT = 32, MAX_CONTENT_REQUESTS = 2;
@@ -166,11 +171,8 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     LinearLayout row = actionRow();
     messageButton = button(row, R.string.ForumProfileMessage, R.drawable.baseline_chat_bubble_24, this::navigateBack);
     muteButton = button(row, R.string.ForumProfileMute, R.drawable.baseline_notifications_off_24, this::toggleMute);
-    LinearLayout quick = actionRow();
-    pinButton = button(quick, R.string.ForumPinTopic, R.drawable.deproko_baseline_pin_24, this::togglePin);
-    linkButton = button(quick, R.string.ForumProfileTopicLink, R.drawable.baseline_link_24, this::copyLink);
-    TextView linkHint = text(12, ColorId.textLight); linkHint.setText(Lang.getString(R.string.ForumProfileLinkHint));
-    linkHint.setGravity(Gravity.CENTER); profile.addView(linkHint, new LinearLayout.LayoutParams(-1, -2));
+    pinButton = button(row, R.string.ForumPinTopic, R.drawable.deproko_baseline_pin_24, this::togglePin);
+    createLinkRow(profile);
     tabScroll = new HorizontalScrollView(context); tabScroll.setHorizontalScrollBarEnabled(false);
     tabs = new LinearLayout(context); tabs.setGravity(Gravity.CENTER_VERTICAL); tabScroll.addView(tabs);
     content.addView(tabScroll, new LinearLayout.LayoutParams(-1, -2));
@@ -191,6 +193,7 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     tdlib.cache().subscribeToSupergroupUpdates(ChatId.toSupergroupId(getChatId()), this);
     subscribed = true;
     observeTopic(); render();
+    loadLink();
     if (restoreScrollPending) restoreScrollAfterLayout();
     return scroll;
   }
@@ -221,6 +224,41 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
   private TextView text (float size, int color) {
     TextView view = new TextView(context); view.setTextSize(size); view.setTextColor(Theme.getColor(color));
     addThemeTextColorListener(view, color); return view;
+  }
+  private void createLinkRow (LinearLayout profile) {
+    linkRow = new LinearLayout(context); linkRow.setGravity(Gravity.CENTER_VERTICAL);
+    linkRow.setMinimumHeight(Screen.dp(72)); linkRow.setFocusable(true);
+    linkRow.setPadding(Screen.dp(16), Screen.dp(12), Screen.dp(16), Screen.dp(12));
+    linkRow.setBackground(Theme.fillingSelector(ColorId.filling, 12f)); addThemeInvalidateListener(linkRow);
+    linkRow.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+    LinearLayout texts = new LinearLayout(context); texts.setOrientation(LinearLayout.VERTICAL);
+    linkText = text(16, ColorId.text); linkText.setGravity(Gravity.START); linkText.setSingleLine(false);
+    linkLabel = text(13, ColorId.textLight); linkLabel.setGravity(Gravity.START); linkLabel.setSingleLine(false);
+    linkLabel.setPadding(0, Screen.dp(4), 0, 0);
+    texts.addView(linkText, new LinearLayout.LayoutParams(-1, -2));
+    texts.addView(linkLabel, new LinearLayout.LayoutParams(-1, -2));
+    texts.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+    linkRow.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+    linkCopy = new ImageView(context); linkCopy.setImageResource(R.drawable.baseline_content_copy_24);
+    linkCopy.setColorFilter(Theme.getColor(ColorId.icon)); addThemeFilterListener(linkCopy, ColorId.icon);
+    linkCopy.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+    LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(Screen.dp(24), Screen.dp(24));
+    iconParams.setMarginStart(Screen.dp(16)); linkRow.addView(linkCopy, iconParams);
+    linkRow.setOnClickListener(v -> copyLink());
+    linkRow.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+      @Override public void onInitializeAccessibilityNodeInfo (View host, AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(host, info); info.setClassName("android.widget.Button");
+        if (host.isEnabled()) info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK,
+          Lang.getString(profileLink.state() == ForumTopicProfileLink.State.READY ? R.string.CopyLink : R.string.FirebaseErrorResolveTryAgain)));
+      }
+    });
+    LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+    rowParams.setMargins(Screen.dp(4), Screen.dp(12), Screen.dp(4), Screen.dp(4));
+    profile.addView(linkRow, rowParams);
+    linkHint = text(12, ColorId.textLight); linkHint.setGravity(Gravity.START);
+    linkHint.setPadding(Screen.dp(4), Screen.dp(4), Screen.dp(4), 0);
+    profile.addView(linkHint, new LinearLayout.LayoutParams(-1, -2));
+    renderLink();
   }
   private LinearLayout actionRow () {
     LinearLayout row = new LinearLayout(context); row.setBaselineAligned(false);
@@ -306,7 +344,7 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     state.setVisibility(available && !topic.info.isClosed && !topic.info.isGeneral ? View.GONE : View.VISIBLE);
     actions.setVisibility(available ? View.VISIBLE : View.GONE);
     messageButton.setEnabled(available); muteButton.setEnabled(available && !busy && topic.notificationSettings != null);
-    linkButton.setEnabled(available && !busy); pinButton.setEnabled(canManage() && !busy);
+    pinButton.setEnabled(canManage() && !busy);
     pinButton.setVisibility(canManage() ? View.VISIBLE : View.GONE);
     if (topic != null) {
       boolean muted = ForumPresentation.isMuted(topic.notificationSettings, tdlib.chatMuteFor(getChatId()) > 0);
@@ -331,6 +369,8 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     if (moreButton != null) moreButton.setEnabled(available && !busy);
     if (!available) { materialFrame.setVisibility(View.GONE); tabScroll.setVisibility(View.GONE); materialState.setVisibility(View.GONE); }
     else renderTabs();
+    if (available && !profileLink.matches(getChatId(), getForumTopicId())) loadLink();
+    renderLink();
   }
 
   @Override public void fillMenuItems (int id, HeaderView header, LinearLayout menu) {
@@ -382,14 +422,44 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     run(done -> tdlib.topics().actions.setNotifications(key(), ForumTopicNotifications.toggleMute(current.notificationSettings, tdlib.chatMuteFor(getChatId()) > 0), done));
   }
   private void copyLink () {
-    if (!ready() || busy) return;
-    busy = true; render(); Object ticket = epoch;
-    tdlib.topics().actions.getLink(key(), (link, error) -> {
-      if (isDestroyed() || ticket != epoch) return;
-      busy = false; render();
-      if (error != null) error(error.message);
-      else if (ready() && link != null) { linkButton.setText(link.link); UI.copyText(link.link, R.string.CopiedLink); }
-    });
+    if (!ready()) return;
+    if (profileLink.matches(getChatId(), getForumTopicId()) && profileLink.state() == ForumTopicProfileLink.State.READY) {
+      UI.copyText(profileLink.url(), R.string.CopiedLink);
+    } else if (profileLink.state() != ForumTopicProfileLink.State.LOADING) loadLink();
+  }
+  private void loadLink () {
+    if (isDestroyed() || terminal || !tdlib.chatAvailable(tdlib.chat(getChatId()))) return;
+    ForumTopicProfileLink.Request request = profileLink.begin(getChatId(), getForumTopicId());
+    if (request == null) return;
+    Object ticket = epoch; renderLink();
+    // The existing helper uses read-only GetForumTopicLink with the typed forum topic ID.
+    tdlib.topics().actions.getLink(new TdlibForumTopicManager.Key(request.chatId, request.forumTopicId), (link, error) -> tdlib.ui().post(() -> {
+      if (!acceptLinkResult(ticket, request)) return;
+      if (profileLink.complete(request, error == null && link != null ? link.link : null, error == null && link != null && link.isPublic)) renderLink();
+    }));
+    tdlib.ui().postDelayed(() -> {
+      if (acceptLinkResult(ticket, request) && profileLink.complete(request, null, false)) renderLink();
+    }, 15000);
+  }
+  private boolean acceptLinkResult (Object ticket, ForumTopicProfileLink.Request request) {
+    return !isDestroyed() && !terminal && epoch == ticket && getChatId() == request.chatId && getForumTopicId() == request.forumTopicId;
+  }
+  private void renderLink () {
+    if (linkRow == null) return;
+    boolean unavailable = terminal || metadataError != null || !tdlib.chatAvailable(tdlib.chat(getChatId()));
+    boolean hasLink = !unavailable && profileLink.matches(getChatId(), getForumTopicId()) && profileLink.state() == ForumTopicProfileLink.State.READY;
+    boolean failed = unavailable || profileLink.state() == ForumTopicProfileLink.State.UNAVAILABLE;
+    linkRow.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    linkText.setTextDirection(hasLink ? View.TEXT_DIRECTION_LTR : View.TEXT_DIRECTION_INHERIT);
+    linkText.setText(hasLink ? profileLink.displayUrl() : Lang.getString(failed ? R.string.NoLinkInfo : R.string.LoadingInformation));
+    linkLabel.setText(Lang.getString(failed && ready() ? R.string.FirebaseErrorResolveTryAgain :
+      hasLink && !profileLink.isPublic() ? R.string.ForumProfileTopicLink : R.string.InviteLink));
+    linkCopy.setVisibility(hasLink ? View.VISIBLE : View.GONE);
+    linkRow.setEnabled(ready() && (hasLink || failed));
+    linkRow.setContentDescription(Lang.getString(R.string.ForumProfileSettingValue, linkLabel.getText(), linkText.getText()));
+    linkHint.setText(Lang.getString(R.string.ForumProfileLinkHint));
+    linkHint.setLayoutDirection(linkRow.getLayoutDirection());
+    linkHint.setVisibility(hasLink && !profileLink.isPublic() ? View.VISIBLE : View.GONE);
   }
   private void togglePin () {
     if (!canManage()) return;
@@ -720,6 +790,7 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
     tdlib.ui().post(() -> {
       if (isDestroyed()) return;
       if (subscription != null) { subscription.close(); subscription = null; }
+      profileLink.invalidate();
       clearContentUpdates();
       closePins(); for (ForumTopicMedia.Category category : categories) category.invalidate();
       for (int i = 0; i < pages.length; i++) if (pages[i] != null) { pages[i].destroy(); pages[i] = null; }
@@ -733,6 +804,7 @@ public final class ForumTopicProfileController extends ViewController<ForumTopic
   }
   @Override public void destroy () {
     epoch = new Object(); closePins(); if (subscription != null) subscription.close();
+    profileLink.invalidate();
     clearContentUpdates();
     for (SharedBaseController<?> page : pages) if (page != null) page.destroy();
     if (customIcon != null) customIcon.performDestroy();
