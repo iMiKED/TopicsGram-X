@@ -18,6 +18,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -108,6 +110,7 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
   private LinearLayout content, pickerHeader, sections, colors, results;
   private HorizontalScrollView colorStrip;
   private EditText nameInput, searchInput;
+  private ImageButton clearSearchButton;
   private TextView action, nameError, error, count, hint, pickerStatus, retryPicker, checkResult, retryTopic;
   private IconCell preview;
   private Parcelable restoredScroll;
@@ -318,12 +321,11 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     searchInput = input(R.string.ForumEditorSearch);
     searchInput.setInputType(InputType.TYPE_CLASS_TEXT);
     searchInput.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-    ViewSupport.setThemedBackground(searchInput, ColorId.background, this).setCornerRadius(24);
     searchInput.setOnEditorActionListener((v, id, event) -> {
       if (id != EditorInfo.IME_ACTION_SEARCH) return false;
       loadPicker(); hideSoftwareKeyboard(); return true;
     });
-    pickerHeader.addView(searchInput);
+    pickerHeader.addView(createSearchRow(Lang.getString(R.string.Clear)));
     TextView heading = label(14, ColorId.textLight);
     heading.setText(Lang.getString(R.string.ForumEditorIconHeading));
     heading.setGravity(Gravity.CENTER);
@@ -344,9 +346,50 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
       if (binding) return;
       query = searchInput.getText().toString();
       category = ""; selectedSet = 0;
+      // Clearing restores defaults immediately and invalidates any outstanding search.
+      if (query.isEmpty()) { loadPicker(); return; }
       final int ticket = ++pickerGeneration;
       tdlib.ui().postDelayed(() -> { if (!isDestroyed() && ticket == pickerGeneration) loadPicker(); }, 250);
     }));
+  }
+
+  private LinearLayout createSearchRow (CharSequence clearDescription) {
+    Context context = searchInput.getContext();
+    LinearLayout row = new LinearLayout(context);
+    row.setGravity(Gravity.CENTER_VERTICAL);
+    row.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    ViewSupport.setThemedBackground(row, ColorId.background, this).setCornerRadius(24);
+    searchInput.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+    searchInput.setPaddingRelative(Screen.dp(16), Screen.dp(8), Screen.dp(8), Screen.dp(8));
+    row.addView(searchInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+    clearSearchButton = new ImageButton(context);
+    clearSearchButton.setImageResource(R.drawable.baseline_close_24);
+    clearSearchButton.setScaleType(ImageView.ScaleType.CENTER);
+    clearSearchButton.setPadding(0, 0, 0, 0);
+    clearSearchButton.setColorFilter(Theme.iconColor());
+    clearSearchButton.setBackground(Theme.circleSelector(48f, ColorId.background));
+    clearSearchButton.setContentDescription(clearDescription);
+    clearSearchButton.setFocusable(true);
+    clearSearchButton.setOnClickListener(v -> {
+      if (!searchInput.isEnabled()) return;
+      searchInput.requestFocus();
+      searchInput.setText("");
+    });
+    addThemeFilterListener(clearSearchButton, ColorId.icon);
+    addThemeInvalidateListener(clearSearchButton);
+    row.addView(clearSearchButton, new LinearLayout.LayoutParams(Screen.dp(48), Screen.dp(48)));
+    // Also observe programmatic/restored text while the picker callback is suppressed.
+    searchInput.addTextChangedListener(watcher(this::updateSearchClear));
+    updateSearchClear();
+    return row;
+  }
+
+  private void updateSearchClear () {
+    if (clearSearchButton == null) return;
+    clearSearchButton.setVisibility(searchInput.length() > 0 ? View.VISIBLE : View.GONE);
+    clearSearchButton.setEnabled(searchInput.isEnabled());
+    clearSearchButton.setAlpha(searchInput.isEnabled() ? 1f : .45f);
   }
 
   private static TextWatcher watcher (Runnable changed) {
@@ -382,6 +425,7 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     boolean editable = form != null && form.editable();
     nameInput.setEnabled(editable);
     searchInput.setEnabled(editable);
+    updateSearchClear();
     colorStrip.setVisibility(form != null && form.creating ? View.VISIBLE : View.GONE);
     boolean showPicker = form != null && !form.general;
     if (adapter != null) adapter.setPickerVisible(showPicker);

@@ -95,6 +95,7 @@ public final class Stage8SyntheticInstrumentation extends Instrumentation {
     ForumTopicRowRenderChecks.register(cases);
     ForumNavigationRenderChecks.register(cases);
     ForumEmojiSlotChecks.register(cases);
+    org.thunderdog.challegram.ui.ForumTopicEditorSearchChecks.register(cases);
     Handler main = new Handler(Looper.getMainLooper());
     int failed = 0, completed = 0;
     long deadline = SystemClock.elapsedRealtime() + 90000;
