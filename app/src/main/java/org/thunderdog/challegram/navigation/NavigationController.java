@@ -236,6 +236,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
       }
     } else {
       contentWrapper.addView(controller.getValue());
+      if (controller instanceof org.thunderdog.challegram.ui.ForumTopicsController) forumContainer.addTopicView(controller.getValue());
     }
     controller.attachNavigationController(this);
     controller.onPrepareToShow();
@@ -253,6 +254,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
       rootView.addView(controller.getValue(), 0);
     } else {
       contentWrapper.addView(controller.getValue(), index);
+      if (controller instanceof org.thunderdog.challegram.ui.ForumTopicsController) forumContainer.addTopicView(controller.getValue());
     }
     controller.attachNavigationController(this);
     controller.onPrepareToShow();
@@ -272,6 +274,7 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
       rootView.removeView(controller.getValue());
     } else {
       contentWrapper.removeView(controller.getValue());
+      if (controller instanceof org.thunderdog.challegram.ui.ForumTopicsController) forumContainer.removeTopicView(controller.getValue());
     }
     controller.onCleanAfterHide();
     controller.detachNavigationController();
@@ -416,12 +419,12 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
     return forumContainer;
   }
 
-  public boolean isForumRailTouch (float x) {
-    return forumContainer != null && forumContainer.isRailTouch(x);
+  public boolean isForumRailTouch (float x, float y) {
+    return forumContainer != null && forumContainer.isRailTouch(x, y);
   }
 
-  public float contentTouchX (float x) {
-    return forumContainer != null ? forumContainer.contentX(x) : x;
+  public float contentTouchX (float x, float y) {
+    return forumContainer != null ? forumContainer.contentX(x, y) : x;
   }
 
   public void addViewUnderHeader (View view) {

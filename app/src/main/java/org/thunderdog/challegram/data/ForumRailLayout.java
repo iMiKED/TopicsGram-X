@@ -16,6 +16,10 @@ public final class ForumRailLayout {
     return occupied > 0 && x >= 0 && x < viewportWidth && (rtl ? x >= viewportWidth - occupied : x < occupied);
   }
 
+  public static boolean hitRail (int viewportWidth, int occupied, float x, float y, int headerBottom, int contentBottom, boolean rtl) {
+    return y >= headerBottom && y < contentBottom && hitRail(viewportWidth, occupied, x, rtl);
+  }
+
   public static float contentX (int occupied, float x, boolean rtl) {
     return rtl ? x : x - occupied;
   }

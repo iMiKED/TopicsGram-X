@@ -3,8 +3,10 @@ package org.thunderdog.challegram.stage8;
 import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.FrameLayout;
 
 import org.thunderdog.challegram.navigation.ForumNavigationContainer;
+import org.thunderdog.challegram.navigation.HeaderView;
 import org.thunderdog.challegram.navigation.NavigationController;
 import org.thunderdog.challegram.navigation.ForumEditorTransitionChecks;
 import org.thunderdog.challegram.navigation.ViewController;
@@ -28,6 +30,7 @@ import static org.thunderdog.challegram.stage8.SyntheticEnvironment.set;
  */
 final class ForumNavigationRenderChecks {
   private static final int CONTENT_COLOR = 0xff168c6e;
+  private static final int HEADER_COLOR = 0xff4361ee;
 
   static void register (List<Stage8SyntheticInstrumentation.Case> cases) {
     for (int width : new int[] {320, 360, 412, 600}) {
@@ -44,41 +47,79 @@ final class ForumNavigationRenderChecks {
   private static void geometry (SyntheticEnvironment env, int widthDp, boolean rtl) throws Exception {
     Context context = env.configure(1f, rtl, ThemeId.BLUE);
     NavigationController navigation = new NavigationController(context);
-    View content = new View(context);
-    content.setBackgroundColor(CONTENT_COLOR);
+    FrameLayout content = new FrameLayout(context);
+    int headerHeight = HeaderView.getSize(true);
+    View topics = new View(context);
+    topics.setBackgroundColor(CONTENT_COLOR);
+    FrameLayout.LayoutParams bodyParams = new FrameLayout.LayoutParams(-1, -1);
+    bodyParams.topMargin = headerHeight;
+    content.addView(topics, bodyParams);
+    View header = new View(context);
+    header.setBackgroundColor(HEADER_COLOR);
+    content.addView(header, new FrameLayout.LayoutParams(-1, headerHeight));
     ForumNavigationContainer root = new ForumNavigationContainer(context, navigation, content);
     try {
       int width = Screen.dp(widthDp), height = Screen.dp(240);
       int railWidth = Screen.dp(widthDp == 320 ? 56 : widthDp == 600 ? 72 : 64);
-      for (float reveal : new float[] {0f, .5f, 1f}) {
-        // No enable(): that would create a live TDLib-backed chat-list slice.
-        set(root, "reveal", reveal);
-        // Match setRevealed/ValueAnimator: changing a reflected field alone leaves Android's
-        // same-MeasureSpec cache valid and incorrectly reuses the previous content width.
+      invoke(root, "addTopicView", new Class<?>[] {View.class}, topics);
+      for (boolean active : new boolean[] {false, true}) {
+        // No enable(): that would create a live TDLib-backed chat-list slice. Only layout
+        // state is synthetic; measurement, margins, hit mapping and drawing are production.
+        set(root, "session", active);
         root.requestLayout();
         measure(root, width, height);
-        int occupied = Math.round(railWidth * reveal);
-        equal(width - occupied, content.getMeasuredWidth(), "Existing navigation root must be resized, not overlaid");
+        int occupied = active ? railWidth : 0;
+        equal(width, content.getMeasuredWidth(), "The navigation root must always retain full width");
+        equal(width, header.getMeasuredWidth(), "The header spans the rail and topic list");
         equal(height, content.getMeasuredHeight(), "Rail must not shorten the content vertically");
-        equal(rtl ? 0 : occupied, content.getLeft(), "Content's physical leading edge");
-        equal(rtl ? width - occupied : width, content.getRight(), "Content's physical trailing edge");
+        equal(width - occupied, topics.getMeasuredWidth(), "Only the topic list reserves rail space");
+        equal(rtl ? 0 : occupied, topics.getLeft(), "Topic list's physical leading edge");
+        equal(rtl ? width - occupied : width, topics.getRight(), "Topic list's physical trailing edge");
         for (int x : new int[] {0, width / 2, width - 1}) {
-          boolean outsideContent = x < content.getLeft() || x >= content.getRight();
-          require(root.isRailTouch(x) == outsideContent, "Hit region must agree with laid-out content at " + x);
+          boolean outsideContent = x < topics.getLeft() || x >= topics.getRight();
+          require(root.isRailTouch(x, headerHeight + 1) == outsideContent, "Hit region must agree with topic body at " + x);
+          require(!root.isRailTouch(x, headerHeight - 1), "Header Back/menu touches must never belong to the rail");
+          equal(x, Math.round(root.contentX(x, headerHeight - 1)), "Header coordinates stay full width");
         }
-        require(!root.isRailTouch(-1) && !root.isRailTouch(width), "Touches outside the viewport are never rail touches");
-        equal(0, Math.round(root.contentX(content.getLeft())), "Gesture/content origin must map to local zero");
-        equal(content.getWidth() - 1, Math.round(root.contentX(content.getRight() - 1)), "Gesture/content right edge must agree");
+        require(!root.isRailTouch(-1, headerHeight + 1) && !root.isRailTouch(width, headerHeight + 1), "Out-of-viewport touches are not rail touches");
+        equal(0, Math.round(root.contentX(topics.getLeft(), headerHeight + 1)), "Topic gesture origin maps to local zero");
+        equal(topics.getWidth() - 1, Math.round(root.contentX(topics.getRight() - 1, headerHeight + 1)), "Topic gesture right edge must agree");
         try (RecordingCanvas canvas = new RecordingCanvas(width, height)) {
           root.draw(canvas);
-          equal(CONTENT_COLOR, canvas.bitmap.getPixel(content.getLeft(), height / 2), "Resized content paints its first pixel");
-          equal(CONTENT_COLOR, canvas.bitmap.getPixel(content.getRight() - 1, height / 2), "Resized content paints its last pixel");
+          equal(HEADER_COLOR, canvas.bitmap.getPixel(0, headerHeight / 2), "Header covers the left edge above the rail");
+          equal(HEADER_COLOR, canvas.bitmap.getPixel(width - 1, headerHeight / 2), "Header covers the right edge above the rail");
+          equal(CONTENT_COLOR, canvas.bitmap.getPixel(topics.getLeft(), height / 2), "Topic list paints its first pixel");
+          equal(CONTENT_COLOR, canvas.bitmap.getPixel(topics.getRight() - 1, height / 2), "Topic list paints its last pixel");
           if (occupied > 0) {
-            int outside = rtl ? content.getRight() : content.getLeft() - 1;
-            equal(0, canvas.bitmap.getPixel(outside, height / 2), "Content must not paint over reserved rail space");
+            int outside = rtl ? topics.getRight() : topics.getLeft() - 1;
+            equal(0, canvas.bitmap.getPixel(outside, height / 2), "Topic body leaves rail space below the header");
           }
         }
       }
+      View messages = new View(context);
+      messages.setBackgroundColor(0xffe76f51);
+      content.addView(messages, 1, new FrameLayout.LayoutParams(-1, -1));
+      measure(root, width, height);
+      equal(width, messages.getWidth(), "Incoming messages are full width even while topics remain attached behind them");
+      equal(width, root.targetContentWidth(), "Message width prediction must not inherit a forum-list inset");
+      invoke(root, "removeTopicView", new Class<?>[] {View.class}, topics);
+      content.removeView(topics);
+      measure(root, width, height);
+      require(!root.isRailTouch(rtl ? width - 1 : 0, headerHeight + 1), "Completed topic transition leaves no rail hit area");
+      equal(0, Math.round(root.contentX(0, headerHeight + 1)), "Full-width messages retain native gesture coordinates");
+      // Back preview reattaches the existing topic body under the still-full-width message view.
+      content.addView(topics, 0, bodyParams);
+      invoke(root, "addTopicView", new Class<?>[] {View.class}, topics);
+      measure(root, width, height);
+      equal(width, messages.getWidth(), "Back preview never shrinks the departing topic history");
+      equal(width - railWidth, topics.getWidth(), "Back preview restores the list inset before transition commit");
+      content.removeView(messages);
+      measure(root, width, height);
+      require(root.isRailTouch(rtl ? width - 1 : 0, headerHeight + 1), "Back restores the list's rail hit area");
+      equal(width, header.getWidth(), "Back keeps the header full width");
+      root.setBottomInset(Screen.dp(24));
+      measure(root, width, height);
+      require(!root.isRailTouch(rtl ? width - 1 : 0, height - 1), "System navigation inset is not a chat target");
     } finally { root.destroy(); }
   }
 
@@ -106,8 +147,6 @@ final class ForumNavigationRenderChecks {
       Bundle output = new Bundle();
       root.saveState(output);
       require(output.isEmpty(), "Inactive synthetic container must not persist an account identity");
-      invoke(root, "setRevealed", new Class<?>[] {boolean.class}, true);
-      require(get(root, "animator") == null, "Detached container must not start an animation");
       root.destroy();
       root.destroy();
       equal(before, listeners.size(), "Destroy must unregister exactly once");
@@ -122,16 +161,19 @@ final class ForumNavigationRenderChecks {
 
   private static void emptyStack (SyntheticEnvironment env) throws Exception {
     Context context = env.configure(1f, false, ThemeId.BLUE);
-    View content = new View(context);
+    FrameLayout content = new FrameLayout(context);
+    View topics = new View(context);
+    content.addView(topics, new FrameLayout.LayoutParams(-1, -1));
     ForumNavigationContainer root = new ForumNavigationContainer(context, new NavigationController(context), content);
     try {
-      invoke(root, "setRevealed", new Class<?>[] {boolean.class}, true);
+      set(root, "session", true);
+      invoke(root, "addTopicView", new Class<?>[] {View.class}, topics);
       measure(root, Screen.dp(360), Screen.dp(240));
-      require(content.getWidth() < root.getWidth(), "Fixture must begin with reserved rail width");
+      require(topics.getWidth() < root.getWidth(), "Fixture must begin with reserved rail width");
       root.refresh(); // Resolves the actual empty stack; never opens a controller or account.
       measure(root, Screen.dp(360), Screen.dp(240));
-      equal(root.getWidth(), content.getWidth(), "An empty stack must release the rail's reserved width");
-      require(!root.isRailTouch(0), "No stale rail hit area after session close");
+      equal(root.getWidth(), topics.getWidth(), "An empty stack must release the rail's reserved width");
+      require(!root.isRailTouch(0, HeaderView.getSize(true) + 1), "No stale rail hit area after session close");
     } finally { root.destroy(); }
   }
 }

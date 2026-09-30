@@ -31,4 +31,15 @@ class ForumRailLayoutTest {
     assertEquals(0, ForumRailLayout.occupied(64, -1f))
     assertEquals(64, ForumRailLayout.occupied(64, 2f))
   }
+
+  @Test fun `rail touch excludes the full width header and system navigation inset`() {
+    for (rtl in booleanArrayOf(false, true)) {
+      val x = if (rtl) 350f else 10f
+      assertFalse(ForumRailLayout.hitRail(360, 64, x, 55f, 56, 780, rtl))
+      assertTrue(ForumRailLayout.hitRail(360, 64, x, 56f, 56, 780, rtl))
+      assertTrue(ForumRailLayout.hitRail(360, 64, x, 779f, 56, 780, rtl))
+      assertFalse(ForumRailLayout.hitRail(360, 64, x, 780f, 56, 780, rtl))
+      assertFalse(ForumRailLayout.hitRail(360, 0, x, 100f, 56, 780, rtl))
+    }
+  }
 }

@@ -17,7 +17,6 @@ import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.loader.AvatarReceiver;
-import org.thunderdog.challegram.navigation.HeaderView;
 import org.thunderdog.challegram.support.RippleSupport;
 import org.thunderdog.challegram.telegram.ChatListListener;
 import org.thunderdog.challegram.telegram.NotificationSettingsListener;
@@ -81,7 +80,9 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   }
 
   public void setInsets (int top, int bottom) {
-    list.setPadding(0, top + HeaderView.getSize(false), 0, bottom);
+    if (list.getPaddingTop() != top || list.getPaddingBottom() != bottom) {
+      list.setPadding(0, top, 0, bottom);
+    }
   }
 
   public void updateTheme () {

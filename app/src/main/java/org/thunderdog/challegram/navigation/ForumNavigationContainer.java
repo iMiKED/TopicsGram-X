@@ -1,14 +1,9 @@
 package org.thunderdog.challegram.navigation;
 
-import android.animation.ValueAnimator;
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.Nullable;
 
@@ -20,20 +15,21 @@ import org.thunderdog.challegram.telegram.CleanupStartupDelegate;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibUi;
 import org.thunderdog.challegram.tool.Screen;
-import org.thunderdog.challegram.unsorted.Settings;
 import org.thunderdog.challegram.ui.ChatsController;
 import org.thunderdog.challegram.ui.ForumTopicsController;
 import org.thunderdog.challegram.ui.MainController;
 import org.thunderdog.challegram.ui.MessagesController;
 import org.thunderdog.challegram.widget.ChatRailView;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 import me.vkryl.android.widget.FrameLayoutFix;
 
 /**
- * Resizes the existing navigation root, including its header and composer. All screens still
- * belong to the one NavigationStack, so focus, IME, Back and predictive gestures keep their owner.
+ * Places the rail behind the full-width navigation header. Only attached topic-list bodies
+ * reserve its width; messages, profiles and editors retain normal full-width navigation.
+ * Keeping the rail behind the stack also lets Back reveal it without resizing either screen.
  */
 public final class ForumNavigationContainer extends FrameLayoutFix implements NavigationStack.ChangeListener {
   private final NavigationController navigation;
@@ -42,9 +38,7 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
   private Tdlib tdlib;
   private TdApi.ChatList source;
   private boolean session, destroyed, switching, closing;
-  private float reveal;
-  private float revealTarget;
-  private ValueAnimator animator;
+  private final ArrayList<View> topicViews = new ArrayList<>();
   private int bottomInset;
   private CleanupStartupDelegate cleanupListener;
   private final LinkedHashMap<Long, Bundle> savedTopics = new LinkedHashMap<>(16, .75f, true);
@@ -85,8 +79,6 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
         private void clear () { post(() -> {
           if (tdlib != boundAccount) return;
           closeSession();
-          if (animator != null) animator.cancel();
-          reveal = revealTarget = 0;
           requestLayout();
         }); }
         @Override public void onPerformUserCleanup () { clear(); }
@@ -152,8 +144,6 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
     ViewController<?> current = navigation.getCurrentStackItem();
     if (current == null) {
       closeSession();
-      if (animator != null) animator.cancel();
-      reveal = revealTarget = 0;
       requestLayout();
       return;
     }
@@ -165,57 +155,53 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
     }
     if (session && current.tdlib() != tdlib) {
       closeSession();
-      setRevealed(false);
       return;
     }
     if (session && (current instanceof MainController || current instanceof ChatsController)) {
-      session = false;
       closing = true;
-      setRevealed(false);
+      if (topicViews.isEmpty()) closeSession();
+      requestLayout();
       return;
     }
-    boolean show = session && current.tdlib() == tdlib &&
-      (current instanceof ForumTopicsController || current instanceof MessagesController || current instanceof org.thunderdog.challegram.ui.ForumTopicProfileController);
     if (rail != null) {
       rail.setSelectedChat(current.getChatId());
       rail.updateTheme();
     }
-    setRevealed(show);
+    requestLayout();
   }
 
-  private void setRevealed (boolean visible) {
-    float target = visible ? 1f : 0f;
-    if (animator != null && revealTarget == target && animator.isRunning()) return;
-    revealTarget = target;
-    if (animator != null) { animator.cancel(); animator = null; }
-    if (target == reveal) { if (closing && target == 0f) closeSession(); return; }
-    boolean animate = isAttachedToWindow() && !Settings.instance().needReduceMotion() && (Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled());
-    if (!animate) { reveal = target; if (closing && target == 0f) closeSession(); requestLayout(); return; }
-    animator = ValueAnimator.ofFloat(reveal, target);
-    animator.setDuration(220);
-    animator.setInterpolator(new DecelerateInterpolator());
-    animator.addUpdateListener(value -> { reveal = (float) value.getAnimatedValue(); requestLayout(); });
-    animator.addListener(new AnimatorListenerAdapter() {
-      private boolean cancelled;
-      @Override public void onAnimationCancel (Animator animation) { cancelled = true; }
-      @Override public void onAnimationEnd (Animator animation) {
-        if (!cancelled && closing && revealTarget == 0f) closeSession();
-      }
-    });
-    animator.start();
+  void addTopicView (View view) {
+    if (!topicViews.contains(view)) topicViews.add(view);
+    requestLayout();
   }
 
-  public boolean isRailTouch (float x) {
-    return ForumRailLayout.hitRail(getWidth(), ForumRailLayout.occupied(railWidth(getWidth()), reveal), x, Lang.rtl());
+  void removeTopicView (View view) {
+    topicViews.remove(view);
+    setTopicInset(view, 0);
+    if (closing && topicViews.isEmpty()) closeSession();
+    requestLayout();
   }
 
-  public float contentX (float x) {
-    return ForumRailLayout.contentX(ForumRailLayout.occupied(railWidth(getWidth()), reveal), x, Lang.rtl());
+  private int occupiedWidth () {
+    return session && !topicViews.isEmpty() ? railWidth(getWidth()) : 0;
+  }
+
+  private int headerBottom () {
+    HeaderView header = navigation.getHeaderView();
+    return header != null ? Math.round(header.getCurrentHeight()) + HeaderView.getTopOffset() : HeaderView.getSize(true);
+  }
+
+  public boolean isRailTouch (float x, float y) {
+    return ForumRailLayout.hitRail(getWidth(), occupiedWidth(), x, y, headerBottom(), getHeight() - bottomInset, Lang.rtl());
+  }
+
+  public float contentX (float x, float y) {
+    return y >= headerBottom() ? ForumRailLayout.contentX(occupiedWidth(), x, Lang.rtl()) : x;
   }
 
   public int targetContentWidth () {
-    int width = getWidth() > 0 ? getWidth() : Screen.currentWidth();
-    return Math.max(0, width - (session ? railWidth(width) : 0));
+    // Message layout may be prepared while a topic list is still attached behind it.
+    return getWidth() > 0 ? getWidth() : Screen.currentWidth();
   }
 
   private int railWidth (int width) {
@@ -225,27 +211,39 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
 
   public void setBottomInset (int value) { bottomInset = value; requestLayout(); }
 
+  private void setTopicInset (View view, int inset) {
+    ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+    int left = Lang.rtl() ? 0 : inset, right = Lang.rtl() ? inset : 0;
+    if (params.leftMargin != left || params.rightMargin != right) {
+      params.leftMargin = left;
+      params.rightMargin = right;
+      view.setLayoutParams(params);
+      content.forceLayout();
+    }
+  }
+
   @Override protected void onMeasure (int widthSpec, int heightSpec) {
     int width = MeasureSpec.getSize(widthSpec), height = MeasureSpec.getSize(heightSpec);
-    int railWidth = railWidth(width), occupied = ForumRailLayout.occupied(railWidth, reveal);
+    int railWidth = railWidth(width);
+    for (View view : topicViews) setTopicInset(view, session ? railWidth : 0);
     if (rail != null) {
-      rail.setInsets(HeaderView.getTopOffset(), bottomInset);
+      rail.setInsets(headerBottom(), bottomInset);
       rail.measure(MeasureSpec.makeMeasureSpec(railWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
     }
-    content.measure(MeasureSpec.makeMeasureSpec(Math.max(0, width - occupied), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
+    content.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
     setMeasuredDimension(width, height);
   }
 
   @Override protected void onLayout (boolean changed, int left, int top, int right, int bottom) {
     int width = right - left, height = bottom - top;
-    int railWidth = railWidth(width), occupied = ForumRailLayout.occupied(railWidth, reveal);
+    int railWidth = railWidth(width);
     boolean rtl = Lang.rtl();
     if (rail != null) {
-      int x = rtl ? width - occupied : occupied - railWidth;
+      int x = rtl ? width - railWidth : 0;
       rail.layout(x, 0, x + railWidth, height);
-      rail.setVisibility(occupied > 0 ? VISIBLE : INVISIBLE);
+      rail.setVisibility(session && !topicViews.isEmpty() ? VISIBLE : INVISIBLE);
     }
-    content.layout(rtl ? 0 : occupied, 0, rtl ? width - occupied : width, height);
+    content.layout(0, 0, width, height);
   }
 
   public void saveState (Bundle out) {
@@ -272,12 +270,14 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
     session = switching = closing = false;
     savedTopics.clear();
     tdlib = null; source = null;
+    requestLayout();
   }
 
   public void destroy () {
     destroyed = true;
-    if (animator != null) animator.cancel();
     navigation.getStack().removeChangeListener(this);
     closeSession();
+    for (View view : topicViews) setTopicInset(view, 0);
+    topicViews.clear();
   }
 }
