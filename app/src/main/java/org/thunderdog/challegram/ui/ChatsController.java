@@ -59,6 +59,7 @@ import org.thunderdog.challegram.data.TGFoundChat;
 import org.thunderdog.challegram.helper.LiveLocationHelper;
 import org.thunderdog.challegram.navigation.BackHeaderButton;
 import org.thunderdog.challegram.navigation.ContentFrameLayout;
+import org.thunderdog.challegram.navigation.ForumRailTransition;
 import org.thunderdog.challegram.navigation.HeaderView;
 import org.thunderdog.challegram.navigation.Menu;
 import org.thunderdog.challegram.navigation.MoreDelegate;
@@ -890,6 +891,55 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
     int position = ((LinearLayoutManager) chatsView.getLayoutManager()).findFirstVisibleItemPosition();
     int chatIndex = adapter.getChatIndexByItemPosition(position);
     return Math.max(0, chatIndex - (adapter.hasArchive() ? 1 : 0));
+  }
+
+  public Runnable holdForumRailSourceLayout () {
+    return ForumRailTransition.holdSourceLayout(chatsView);
+  }
+
+  public List<ForumRailTransition.Avatar> captureForumRailAvatars (ViewGroup host) {
+    List<ForumRailTransition.Avatar> avatars = new ArrayList<>();
+    if (chatsView == null) return avatars;
+    chatsView.stopScroll();
+    for (int i = 0; i < chatsView.getChildCount(); i++) {
+      View child = chatsView.getChildAt(i);
+      if (!(child instanceof ChatView)) continue;
+      ChatView row = (ChatView) child;
+      if (row.getChatId() == 0 || child.getBottom() <= chatsView.getPaddingTop() || child.getTop() >= chatsView.getHeight()) continue;
+      org.thunderdog.challegram.loader.Receiver avatar = row.getAvatarReceiver();
+      if (avatar.getWidth() <= 0) continue;
+      avatars.add(ForumRailTransition.Avatar.capture(row.getChatId(), host, row,
+        avatar.centerX(), avatar.centerY(), avatar.getWidth() / 2f, (canvas, decorations) -> {
+          if (avatar.needPlaceholder()) avatar.drawPlaceholder(canvas);
+          avatar.draw(canvas);
+        }, row::setForumTransitionAvatarHidden));
+    }
+    return avatars;
+  }
+
+  public ChatView getForumRailAnchor (ViewGroup host, int headerBottom) {
+    if (chatsView == null) return null;
+    android.view.ViewParent ancestor = chatsView.getParent();
+    while (ancestor != null && ancestor != host) ancestor = ancestor.getParent();
+    if (ancestor != host) return null;
+    Rect bounds = new Rect();
+    int[] hostLocation = new int[2];
+    host.getLocationOnScreen(hostLocation);
+    for (int i = 0; i < chatsView.getChildCount(); i++) {
+      View child = chatsView.getChildAt(i);
+      if (!(child instanceof ChatView) || ((ChatView) child).getChatId() == 0) continue;
+      // Include ancestor clipping (e.g. the folder pager), not just the row's layout bounds.
+      if (child.getGlobalVisibleRect(bounds) && bounds.bottom > hostLocation[1] + headerBottom &&
+          bounds.top < hostLocation[1] + host.getHeight()) return (ChatView) child;
+    }
+    return null;
+  }
+
+  public int getForumRailAnchorOffset (ViewGroup host, int headerBottom, ChatView row) {
+    if (row == null || row.getHeight() == 0) return 0;
+    Rect bounds = new Rect(0, 0, row.getWidth(), row.getHeight());
+    host.offsetDescendantRectToMyCoords(row, bounds);
+    return Math.round((bounds.top - headerBottom) * (Screen.dp(64) / (float) row.getHeight()));
   }
 
   public void onLiveLocationClick (float x, float y) {

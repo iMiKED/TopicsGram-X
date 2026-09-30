@@ -4,6 +4,17 @@ package org.thunderdog.challegram.data;
 public final class ForumRailLayout {
   private ForumRailLayout () { }
 
+  public static float progress (float value) { return Math.max(0f, Math.min(1f, value)); }
+
+  public static float interpolate (float from, float to, float progress) {
+    return from + (to - from) * progress(progress);
+  }
+
+  /** The body already has a leading rail margin. Gesture distance remains the full viewport. */
+  public static float topicTranslation (int viewportWidth, int railWidth, float openProgress, boolean rtl) {
+    return Math.max(0, viewportWidth - railWidth) * (1f - progress(openProgress)) * (rtl ? -1f : 1f);
+  }
+
   public static int widthDp (float viewportDp) {
     return viewportDp >= 600 ? 72 : viewportDp < 360 ? 56 : 64;
   }

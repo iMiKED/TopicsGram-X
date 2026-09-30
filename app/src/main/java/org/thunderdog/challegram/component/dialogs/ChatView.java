@@ -172,6 +172,15 @@ public class ChatView extends BaseView implements TdlibSettingsManager.Preferenc
     return avatarReceiver;
   }
 
+  private boolean forumTransitionAvatarHidden;
+
+  public void setForumTransitionAvatarHidden (boolean hidden) {
+    if (forumTransitionAvatarHidden != hidden) {
+      forumTransitionAvatarHidden = hidden;
+      invalidate();
+    }
+  }
+
   public ComplexReceiver getTextMediaReceiver () {
     return textMediaReceiver;
   }
@@ -741,6 +750,7 @@ public class ChatView extends BaseView implements TdlibSettingsManager.Preferenc
       }
     }
 
+    if (forumTransitionAvatarHidden) return;
     avatarReceiver.forceAllowOnline(!isSelected.getValue(), 1f - isSelected.getFloatValue());
     layoutReceiver();
     if (avatarReceiver.needPlaceholder()) {

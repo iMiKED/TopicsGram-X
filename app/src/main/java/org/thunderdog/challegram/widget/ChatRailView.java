@@ -17,6 +17,7 @@ import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.loader.AvatarReceiver;
+import org.thunderdog.challegram.navigation.ForumRailTransition;
 import org.thunderdog.challegram.support.RippleSupport;
 import org.thunderdog.challegram.telegram.ChatListListener;
 import org.thunderdog.challegram.telegram.NotificationSettingsListener;
@@ -25,6 +26,7 @@ import org.thunderdog.challegram.telegram.TdlibChatList;
 import org.thunderdog.challegram.telegram.TdlibChatListSlice;
 import org.thunderdog.challegram.theme.ColorId;
 import org.thunderdog.challegram.theme.Theme;
+import org.thunderdog.challegram.theme.PropertyId;
 import org.thunderdog.challegram.tool.Screen;
 import org.thunderdog.challegram.util.text.Counter;
 
@@ -45,6 +47,9 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   private boolean destroyed, loading, initialized;
   private long selectedChat;
   private int restorePosition = -1, restoreOffset;
+  private long restoreChatId;
+  private boolean transitionPaused;
+  private final ArrayList<Runnable> pendingUpdates = new ArrayList<>();
 
   public ChatRailView (Context context, Tdlib tdlib, TdApi.ChatList source, RunnableLong openChat) {
     super(context);
@@ -101,11 +106,36 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   }
 
   private void dispatch (Runnable action) {
-    tdlib.ui().post(() -> { if (!destroyed) action.run(); });
+    tdlib.ui().post(() -> {
+      if (destroyed) return;
+      if (transitionPaused) pendingUpdates.add(action); else action.run();
+    });
+  }
+
+  public void setTransitionPaused (boolean paused) {
+    transitionPaused = paused;
+    if (!paused && !pendingUpdates.isEmpty()) {
+      ArrayList<Runnable> updates = new ArrayList<>(pendingUpdates);
+      pendingUpdates.clear();
+      if (!destroyed) for (Runnable update : updates) update.run();
+    }
+  }
+
+  public List<ForumRailTransition.Avatar> captureAvatars (ViewGroup host) {
+    ArrayList<ForumRailTransition.Avatar> result = new ArrayList<>();
+    if (!initialized || restorePosition >= 0 || list.isLayoutRequested()) return result;
+    list.stopScroll();
+    for (int i = 0; i < list.getChildCount(); i++) {
+      RailRow row = (RailRow) list.getChildAt(i);
+      if (row.chatId == 0 || row.getBottom() <= list.getPaddingTop() || row.getTop() >= list.getHeight() - list.getPaddingBottom()) continue;
+      result.add(ForumRailTransition.Avatar.capture(row.chatId, host, row,
+        row.getWidth() / 2f, row.getHeight() / 2f, row.avatarRadius(), row::drawContents, null));
+    }
+    return result;
   }
 
   private void loadMore () {
-    if (destroyed || !initialized || loading || !slice.canLoad() || restorePosition < chats.size() && layout.findLastVisibleItemPosition() < chats.size() - 6) return;
+    if (destroyed || !initialized || loading || !slice.canLoad() || restoreChatId == 0 && restorePosition < chats.size() && layout.findLastVisibleItemPosition() < chats.size() - 6) return;
     loading = true;
     int previousSize = chats.size();
     slice.loadMore(30, () -> dispatch(() -> {
@@ -122,11 +152,25 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
     return first != null ? layout.getDecoratedTop(first) - list.getPaddingTop() : 0;
   }
   public void restoreScrollPosition (int position, int offset) {
+    restoreChatId = 0;
     restorePosition = Math.max(0, position); restoreOffset = offset;
     applyScrollPosition();
     loadMore();
   }
+  public void restoreScrollAnchor (long chatId, int position, int offset) {
+    restorePosition = Math.max(0, position);
+    restoreOffset = offset;
+    restoreChatId = chatId;
+    applyScrollPosition();
+    loadMore();
+  }
   private void applyScrollPosition () {
+    if (restoreChatId != 0) {
+      int position = chats.indexOf(restoreChatId);
+      if (position >= 0) { restorePosition = position; restoreChatId = 0; }
+      else if (!slice.isEndReached()) return;
+      else restoreChatId = 0;
+    }
     if (restorePosition >= 0 && !chats.isEmpty() && (restorePosition < chats.size() || slice.isEndReached())) {
       layout.scrollToPositionWithOffset(Math.min(restorePosition, chats.size() - 1), restoreOffset);
       restorePosition = -1;
@@ -165,6 +209,7 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
   public void destroy () {
     if (destroyed) return;
     destroyed = true;
+    pendingUpdates.clear();
     slice.performDestroy();
     tdlib.listeners().unsubscribeFromSettingsUpdates(this);
     list.setAdapter(null);
@@ -195,6 +240,7 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
     long chatId;
     RailRow (Context context) {
       super(context);
+      avatar.setAvatarRadiusPropertyIds(PropertyId.AVATAR_RADIUS_CHAT_LIST, PropertyId.AVATAR_RADIUS_CHAT_LIST_FORUM);
       setFocusable(true);
       RippleSupport.setTransparentSelector(this);
       setOnClickListener(v -> { if (chatId != 0) openChat.runWithLong(chatId); });
@@ -218,17 +264,22 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
     @Override protected void onDetachedFromWindow () { avatar.detach(); super.onDetachedFromWindow(); }
     @Override public void onInitializeAccessibilityNodeInfo (AccessibilityNodeInfo info) { super.onInitializeAccessibilityNodeInfo(info); info.setClassName("android.widget.Button"); info.setSelected(isSelected()); }
     @Override protected void onDraw (Canvas canvas) {
+      drawContents(canvas, 1f);
+    }
+    int avatarRadius () { return Math.min(Screen.dp(23), getWidth() / 2 - Screen.dp(5)); }
+    void drawContents (Canvas canvas, float decorations) {
       float cx = getWidth() / 2f, cy = getHeight() / 2f;
-      int radius = Math.min(Screen.dp(23), getWidth() / 2 - Screen.dp(5));
+      int radius = avatarRadius();
       if (isSelected()) {
         paint.setColor(Theme.getColor(ColorId.iconActive));
+        paint.setAlpha(Math.round(255f * decorations));
         paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(Screen.dp(2));
         canvas.drawCircle(cx, cy, radius + Screen.dp(3), paint); paint.setStyle(Paint.Style.FILL);
       }
       avatar.setBounds((int) cx - radius, (int) cy - radius, (int) cx + radius, (int) cy + radius);
       if (avatar.needPlaceholder()) avatar.drawPlaceholder(canvas);
       avatar.draw(canvas);
-      counter.draw(canvas, cx + radius, cy + radius - Screen.dp(3), Gravity.RIGHT, 1f);
+      counter.draw(canvas, cx + radius, cy + radius - Screen.dp(3), Gravity.RIGHT, decorations);
     }
   }
 }
