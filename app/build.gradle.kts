@@ -19,6 +19,9 @@ plugins {
 }
 
 val config = tgxConfig.config.get()
+// A separate, account-isolated install for finite synthetic UI instrumentation, never a feature flag.
+val stage8Synthetic = providers.gradleProperty("stage8.synthetic").map { it.toBoolean() }.getOrElse(false)
+val effectiveApplicationId = config.applicationId + if (stage8Synthetic) ".stage8synthetic" else ""
 val generateBaselineProfile = tgxConfig.generateBaselineProfile.get()
 val useLegacyNdk = tgxConfig.useLegacyNdk.get()
 val appliedNdkVersion = if (useLegacyNdk) {
@@ -313,13 +316,14 @@ android {
   }
 
   defaultConfig {
-    applicationId = config.applicationId
+    applicationId = effectiveApplicationId
+    testInstrumentationRunner = "org.thunderdog.challegram.stage8.Stage8SyntheticInstrumentation"
     targetSdk = config.build.targetSdkVersion
     multiDexEnabled = true
 
     resValue("string", "AppName", config.applicationName)
-    resValue("string", "account_type", "${config.applicationId}.sync.account")
-    resValue("string", "content_authority", "${config.applicationId}.sync.provider")
+    resValue("string", "account_type", "$effectiveApplicationId.sync.account")
+    resValue("string", "content_authority", "$effectiveApplicationId.sync.provider")
 
     buildConfigString("PROJECT_NAME", config.applicationName)
     buildConfigString("SAFETYNET_API_KEY", config.safetyNetToken)
@@ -466,6 +470,7 @@ android {
   }
 
   sourceSets.getByName("main") {
+    if (stage8Synthetic) manifest.srcFile("src/stage8Synthetic/AndroidManifest.xml")
     // TODO: Exclude in FOSS variant
     kotlin.directories += "src/google/main/java"
     java.directories += "src/google/main/java"
