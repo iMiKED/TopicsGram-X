@@ -1,6 +1,7 @@
 package org.thunderdog.challegram.telegram
 
 import org.drinkless.tdlib.TdApi
+import org.thunderdog.challegram.data.ForumChatPreview
 import org.thunderdog.challegram.telegram.TdlibForumTopicManager.Key
 import java.io.Closeable
 import java.util.Collections
@@ -42,7 +43,7 @@ class ForumTopicStore(
   fun interface ListObserver { fun onSnapshot(snapshot: Snapshot) }
   fun interface TopicObserver { fun onTopic(topic: TdApi.ForumTopic?, error: TdApi.Error?) }
 
-  inner class ListSession internal constructor(internal var key: ListKey, internal val observer: ListObserver) : Closeable {
+  inner class ListSession internal constructor(internal var key: ListKey, internal val observer: ListObserver, internal val previewOnly: Boolean = false) : Closeable {
     private val context = epoch
     @Volatile private var disposed = false
     @Volatile private var invalidated = false
@@ -117,6 +118,12 @@ class ForumTopicStore(
     val topicErrors = LinkedHashMap<Key, TdApi.Error>()
     var retryKind = Load.INITIAL
     var request: PageRequest? = null
+    var previewFresh = false
+    var previewStamp = 0L
+    var previewTruncated = false
+    // One unresolved draft, independent of the loaded page membership in ids.
+    var previewDraftKey: Key? = null
+    var previewDraftDate = 0
   }
   private class Record {
     var value: TdApi.ForumTopic? = null
@@ -126,6 +133,9 @@ class ForumTopicStore(
     var updateStamp = 0L
     var dirtyStamp = 0L
     var eventStamp = 0L
+    // A keyed mutation needs a point read started after its acknowledgement. A cached
+    // list page or an action preflight cannot satisfy this independently tracked work.
+    var mutationStamp = 0L
     var removedStamp = 0L
     var info: TdApi.ForumTopicInfo? = null
     var update: TdApi.UpdateForumTopic? = null
@@ -140,6 +150,7 @@ class ForumTopicStore(
   private var sequence = 0L
   @Volatile private var epoch = 0L
   private var reconciliationScheduled = false
+
 
   init {
     require(pageSize in 1..100 && maxCachedTopics > 0 && maxInactiveLists >= 0)
@@ -166,6 +177,14 @@ class ForumTopicStore(
     return session
   }
 
+  /** Visible chat rows need only a bounded first-page projection. Fast scrolls do not start requests. */
+  fun openPreview(chatId: Long, observer: ListObserver): ListSession {
+    require(chatId != 0L)
+    val session = ListSession(ListKey(chatId, ""), observer, previewOnly = true)
+    backend.schedule(PREVIEW_ATTACH_DELAY_MS) { onOwner { if (session.live()) attach(session) } }
+    return session
+  }
+
   fun observeTopic(key: Key, observer: TopicObserver): TopicSubscription {
     val subscription = TopicSubscription(key, observer)
     onOwner {
@@ -173,7 +192,7 @@ class ForumTopicStore(
         topicObservers.getOrPut(key) { LinkedHashSet() }.add(subscription)
         val record = records[key]
         if (record?.value != null) subscription.deliver(record.value, null)
-        if (record?.value == null || record.dirtyStamp > record.fullStamp) queueTopic(key)
+        if (record?.value == null || record.error != null || record.mutationStamp != 0L || record.dirtyStamp > record.fullStamp) queueTopic(key)
       }
     }
     return subscription
@@ -204,20 +223,27 @@ class ForumTopicStore(
     val state = state(session.key)
     val wasInactive = state.sessions.isEmpty()
     state.sessions.add(session)
+    trimPreview(state)
     session.deliver(snapshot(state))
-    if (state.request == null) {
+    if (!session.previewOnly && state.previewTruncated && state.request?.kind == Load.MORE) {
+      refresh(state) // A pending next page cannot repair an earlier, trimmed prefix.
+    } else if (state.request == null) {
       if (!state.initialized) requestPage(state, Load.INITIAL)
-      else if (wasInactive || state.stale) refresh(state)
+      else if (state.stale || !session.previewOnly && state.previewTruncated || wasInactive && (!session.previewOnly || !state.previewFresh)) refresh(state)
     }
+    if (session.previewOnly) state.previewDraftKey?.let { queueTopic(it) }
+    records.filter { it.key.chatId == session.key.chatId && it.value.mutationStamp != 0L && interested(it.key) }
+      .keys.forEach { queueTopic(it) }
     trim()
   }
 
   private fun detach(session: ListSession) {
     lists[session.key]?.let { state ->
       if (state.sessions.remove(session) && state.sessions.isEmpty()) {
+        if (state.request != null || !session.previewOnly) state.stale = true
         state.request = null
-        state.stale = true
       }
+      if (trimPreview(state)) emit(state)
     }
   }
 
@@ -272,6 +298,7 @@ class ForumTopicStore(
       state.ids.removeAll { key -> records[key]?.let { maxOf(it.infoStamp, it.updateStamp, it.dirtyStamp, it.fullStamp) <= request.stamp } != false }
       state.seenCursors.clear()
       state.pinnedRanks.clear()
+      state.previewTruncated = false
     }
     for (topic in result.topics) {
       val key = Key(topic.info.chatId, topic.info.forumTopicId)
@@ -285,13 +312,16 @@ class ForumTopicStore(
     val next = Cursor(result.nextOffsetDate, result.nextOffsetMessageId, result.nextOffsetForumTopicId)
     state.totalCount = result.totalCount.coerceAtLeast(0)
     state.initialized = true
+    state.previewFresh = true
+    state.previewStamp = request.stamp
+    backend.schedule(PREVIEW_CACHE_MS) { onOwner { if (lists[state.key] === state && state.previewStamp == request.stamp) state.previewFresh = false } }
     state.endReached = result.topics.isEmpty() && next.isEmpty
     if (!state.endReached && (next.isEmpty || next == request.cursor || !state.seenCursors.add(next) ||
         (request.kind == Load.MORE && state.ids.none { it !in previousIds }) || result.topics.isEmpty())) {
       state.error = TdApi.Error(PAGINATION_ERROR, "Forum topic pagination made no progress; refresh to retry")
     }
     if (!next.isEmpty) state.cursor = next
-    lists.values.filter { it.key.chatId == state.key.chatId }.forEach { updateStaleness(it) }
+    lists.values.filter { it.key.chatId == state.key.chatId }.forEach { trimPreview(it); updateStaleness(it) }
     emitChat(state.key.chatId)
     trim()
     if (pendingTopics.isNotEmpty() || lists.values.any { it.dirty && it.sessions.isNotEmpty() }) scheduleReconciliation()
@@ -306,16 +336,23 @@ class ForumTopicStore(
     if (record.updateStamp > stamp) value = applyUpdate(value, record.update!!)
     record.value = value
     record.error = null
-    lists.values.filter { it.key.chatId == key.chatId }.forEach { it.topicErrors.remove(key) }
+    lists.values.filter { it.key.chatId == key.chatId }.forEach { state ->
+      state.topicErrors.remove(key)
+      if (state.previewDraftKey == key) {
+        // A page in any list may resolve the draft. Publish the full value before dropping interest.
+        state.ids.add(key)
+        setPreviewDraftInterest(state, null)
+      }
+    }
     record.fullStamp = stamp
-    if (record.eventStamp <= stamp &&
+    if (record.mutationStamp == 0L && record.eventStamp <= stamp &&
       (record.infoStamp <= stamp || sameInfo(incoming.info, record.info)) &&
       (record.updateStamp <= stamp || sameUpdate(incoming, record.update))) {
       record.dirtyStamp = minOf(record.dirtyStamp, stamp)
       pendingTopics.remove(key)
     }
     notifyTopic(key, record)
-    if (record.dirtyStamp > stamp && interested(key)) queueTopic(key)
+    if ((record.mutationStamp != 0L || record.dirtyStamp > stamp) && interested(key)) queueTopic(key)
     return true
   }
 
@@ -335,6 +372,21 @@ class ForumTopicStore(
 
   fun updateTopic(update: TdApi.UpdateForumTopic) = onOwner {
     val key = Key(update.chatId, update.forumTopicId)
+    val draft = update.draftMessage
+    // A remote draft can arrive before either topic metadata or its list page. Keep only the
+    // newest pending draft interested per visible preview, using the existing bounded hydrator.
+    for (state in lists.values) {
+      if (state.key.chatId != key.chatId || state.key.query.isNotEmpty()) continue
+      // Clear even offscreen; resolved or cleared drafts must not leave a date threshold behind.
+      if (state.previewDraftKey == key && (!ForumChatPreview.hasTextDraft(draft) || records[key]?.value != null)) {
+        setPreviewDraftInterest(state, null)
+      }
+      if (state.sessions.any { it.previewOnly && it.live() } && records[key]?.value == null &&
+          draft != null && ForumChatPreview.hasTextDraft(draft) &&
+          (state.previewDraftKey == key || draft.date >= state.previewDraftDate)) {
+        setPreviewDraftInterest(state, key, draft.date)
+      }
+    }
     if (key !in records && !interested(key)) return@onOwner
     if (sameUpdate(records[key]?.value, update)) return@onOwner
     val record = records.getOrPut(key) { Record() }
@@ -342,19 +394,25 @@ class ForumTopicStore(
     record.updateStamp = ++sequence
     record.update = update
     record.value = record.value?.let { applyUpdate(it, update) }
+    if (ForumChatPreview.hasTextDraft(update.draftMessage) && record.value != null) {
+      lists.values.filter { it.key.chatId == key.chatId && it.key.query.isEmpty() && it.sessions.any { session -> session.previewOnly && session.live() } }
+        .forEach { it.ids.add(key); trimPreview(it) }
+    }
     // This update doesn't contain order, lastMessage or unreadCount.
     notifyTopic(key, record)
     invalidate(key, externalEvent = false)
     // A pin event has no position. Reconcile the list, including changes from another client.
     if (pinChanged) invalidateChatImpl(key.chatId)
+    trim()
   }
 
   fun onMessage(message: TdApi.Message) = onOwner {
     val topic = message.topicId
     if (topic is TdApi.MessageTopicForum && message.schedulingState == null) {
       val key = Key(message.chatId, topic.forumTopicId)
-      if (key in records || key in topicObservers) invalidate(key)
-      else invalidateChatImpl(message.chatId) // Discover a burst of unseen topics with one list refresh.
+      val known = key in records || key in topicObservers
+      if (known) invalidate(key)
+      if (!known || !interested(key)) invalidateChatImpl(message.chatId) // Discover a burst of unseen topics with one list refresh.
     }
   }
 
@@ -369,7 +427,9 @@ class ForumTopicStore(
 
   fun onConnectionRestored() = onOwner {
     lists.values.toList().filter { it.stale && it.request == null && it.sessions.any { session -> session.live() } }.forEach { refresh(it) }
-    topicObservers.keys.filter { records[it]?.let { record -> record.error != null || record.dirtyStamp > record.fullStamp } != false }.forEach { queueTopic(it) }
+    lists.values.filter { it.sessions.any { session -> session.previewOnly && session.live() } }
+      .mapNotNull { it.previewDraftKey }.forEach { queueTopic(it) }
+    topicObservers.keys.filter { records[it]?.let { record -> record.error != null || record.mutationStamp != 0L || record.dirtyStamp > record.fullStamp } != false }.forEach { queueTopic(it) }
   }
 
   private fun invalidateChatImpl(chatId: Long) {
@@ -411,7 +471,16 @@ class ForumTopicStore(
   }
 
   private fun interested(key: Key): Boolean = topicObservers[key]?.any { !it.closed } == true ||
-    lists.values.any { it.key.chatId == key.chatId && (it.key.query.isEmpty() || key in it.ids) && it.sessions.any { session -> session.live() } }
+    lists.values.any { state -> state.key.chatId == key.chatId && (state.key.query.isEmpty() || key in state.ids) &&
+      state.sessions.any { session -> session.live() && (!session.previewOnly || key in state.ids || state.previewDraftKey == key) } }
+
+  private fun setPreviewDraftInterest(state: ListState, key: Key?, date: Int = 0) {
+    val previous = state.previewDraftKey
+    state.previewDraftKey = key
+    state.previewDraftDate = if (key != null) date else 0
+    // Do not cancel work still needed by a full list or an explicit topic observer.
+    if (previous != null && previous != key && !interested(previous)) pendingTopics.remove(previous)
+  }
 
   private fun queueTopic(key: Key) {
     pendingTopics.add(key)
@@ -442,8 +511,9 @@ class ForumTopicStore(
       if (!interested(key)) { iterator.remove(); continue }
       if (key in topicRequests) continue
       val record = records[key]
-      if (record?.value != null && record.error == null && record.dirtyStamp <= record.fullStamp) { iterator.remove(); continue }
-      if (record?.value == null && lists.values.any { it.key.chatId == key.chatId && it.key.query.isEmpty() && it.request != null }) continue
+      if (record?.value != null && record.error == null && record.mutationStamp == 0L && record.dirtyStamp <= record.fullStamp) { iterator.remove(); continue }
+      if (record?.value == null && (record == null || record.mutationStamp == 0L) &&
+          lists.values.any { it.key.chatId == key.chatId && it.key.query.isEmpty() && it.request != null }) continue
       iterator.remove()
       val request = TopicRequest(++sequence, epoch)
       topicRequests[key] = request
@@ -459,24 +529,36 @@ class ForumTopicStore(
     if (request.epoch != epoch || topicRequests[key] !== request) return
     topicRequests.remove(key)
     val record = records.getOrPut(key) { Record() }
+    val afterMutation = record.mutationStamp != 0L && request.stamp > record.mutationStamp
     if (result is TdApi.ForumTopic && result.info?.chatId == key.chatId && result.info.forumTopicId == key.forumTopicId) {
+      // A superseded response has not reconciled the mutation. Keep its required read
+      // queued even if a newer (but cached) page made dirtyStamp <= fullStamp.
+      if (afterMutation && request.stamp >= maxOf(record.fullStamp, record.removedStamp)) record.mutationStamp = 0L
       if (merge(key, result, request.stamp)) {
         for (state in lists.values) {
           if (state.key.chatId == key.chatId && state.key.query.isEmpty() && state.sessions.any { it.live() }) state.ids.add(key)
         }
         invalidateSearch(key.chatId)
       }
-      if (record.dirtyStamp <= request.stamp) pendingTopics.remove(key)
+      if (record.mutationStamp == 0L && record.dirtyStamp <= request.stamp) pendingTopics.remove(key)
+      if (record.mutationStamp != 0L && interested(key)) queueTopic(key)
     } else {
       val error = result as? TdApi.Error ?: TdApi.Error(502, "Invalid forum topic response")
-      if (request.stamp >= record.fullStamp) {
+      // One failed/timed-out attempt ends the forced read. Expose the error and leave
+      // retries to a new event, reconnect or explicit retry, not an automatic loop.
+      if (afterMutation) record.mutationStamp = 0L
+      if (afterMutation || request.stamp >= record.fullStamp) {
         record.error = error
         val removed = error.code == 404 && maxOf(record.infoStamp, record.updateStamp, record.dirtyStamp) <= request.stamp
         if (removed) {
           record.value = null
           record.fullStamp = request.stamp
           record.removedStamp = ++sequence
-          lists.values.forEach { it.ids.remove(key); it.pinnedRanks.remove(key) }
+          lists.values.forEach { state ->
+            state.ids.remove(key)
+            state.pinnedRanks.remove(key)
+            if (state.previewDraftKey == key) setPreviewDraftInterest(state, null)
+          }
         }
         for (state in lists.values.filter { it.key.chatId == key.chatId }) {
           if (removed) state.topicErrors.remove(key)
@@ -485,10 +567,11 @@ class ForumTopicStore(
         notifyTopic(key, record)
       }
       // A genuinely newer event still needs reconciliation; an ordinary error never retries itself.
-      if (record.dirtyStamp > maxOf(request.stamp, record.fullStamp) && interested(key)) queueTopic(key)
+      if ((record.mutationStamp != 0L || record.dirtyStamp > maxOf(request.stamp, record.fullStamp)) && interested(key)) queueTopic(key)
       else pendingTopics.remove(key)
     }
     lists.values.filter { it.key.chatId == key.chatId }.forEach { updateStaleness(it) }
+    lists.values.filter { it.key.chatId == key.chatId }.forEach { trimPreview(it) }
     emitChat(key.chatId)
     trim()
     if (pendingTopics.isNotEmpty() || lists.values.any { it.dirty && it.sessions.isNotEmpty() }) scheduleReconciliation()
@@ -501,7 +584,7 @@ class ForumTopicStore(
   private fun updateStaleness(state: ListState) {
     fun belongs(key: Key) = key.chatId == state.key.chatId && (state.key.query.isEmpty() || key in state.ids)
     state.stale = !state.initialized || state.dirty || state.error != null || state.topicErrors.isNotEmpty() ||
-      state.ids.any { records[it]?.let { record -> record.error != null || record.dirtyStamp > record.fullStamp } == true } ||
+      state.ids.any { records[it]?.let { record -> record.error != null || record.mutationStamp != 0L || record.dirtyStamp > record.fullStamp } == true } ||
       pendingTopics.any { belongs(it) } || topicRequests.keys.any { belongs(it) }
   }
 
@@ -526,6 +609,22 @@ class ForumTopicStore(
 
   private fun emitChat(chatId: Long) = lists.values.filter { it.key.chatId == chatId }.forEach { emit(it) }
 
+  private fun trimPreview(state: ListState): Boolean {
+    if (state.sessions.isEmpty() || state.sessions.any { !it.previewOnly }) return false
+    val values = state.ids.mapNotNull { records[it]?.value }
+    val retained = LinkedHashSet<Key>()
+    // Draft priority is independent of last-message timestamps, including much newer messages.
+    ForumChatPreview.latestDraft(state.key.chatId, values)?.let { retained.add(Key(it.info.chatId, it.info.forumTopicId)) }
+    for (topic in values.sortedWith(ForumChatPreview.CACHE_FIRST)) {
+      if (retained.size >= MAX_PREVIEW_TOPICS) break
+      retained.add(Key(topic.info.chatId, topic.info.forumTopicId))
+    }
+    if (retained.size < state.ids.size) state.previewTruncated = true
+    val changed = state.ids.retainAll(retained)
+    state.pinnedRanks.keys.retainAll(retained)
+    return changed
+  }
+
   private fun trim() {
     val inactive = lists.values.filter { it.sessions.isEmpty() }
     for (state in inactive.take((inactive.size - maxInactiveLists).coerceAtLeast(0))) lists.remove(state.key)
@@ -540,6 +639,7 @@ class ForumTopicStore(
 
   private fun evictUnused() {
     val retained = lists.values.flatMap { it.ids }.toHashSet()
+    lists.values.mapNotNullTo(retained) { it.previewDraftKey }
     val iterator = records.iterator()
     while (records.size > maxCachedTopics && iterator.hasNext()) {
       val (key, record) = iterator.next()
@@ -552,6 +652,8 @@ class ForumTopicStore(
   /** A mutation is sent once. Timeout is an uncertain outcome, never an automatic retry. */
   internal fun perform(request: TdApi.Function<*>, chatId: Long, key: Key?, expectedConstructor: Int, changesState: Boolean, callback: (TdApi.Object?, TdApi.Error?) -> Unit) = onOwner {
     val context = epoch
+    val topicRead = if (!changesState) request as? TdApi.GetForumTopic else null
+    val readStamp = if (topicRead != null) ++sequence else 0L
     var finished = false
     fun complete(result: TdApi.Object) {
       if (finished || context != epoch) return
@@ -561,10 +663,32 @@ class ForumTopicStore(
         if (result is TdApi.ForumTopicInfo) updateInfo(result)
         if (key != null) {
           // Prevent an older full fetch from undoing an operation that just succeeded.
-          records[key]?.fullStamp = ++sequence
+          if (key in records || interested(key)) {
+            val record = records.getOrPut(key) { Record() }
+            record.mutationStamp = ++sequence
+            record.fullStamp = record.mutationStamp
+          }
           invalidate(key)
         }
         invalidateChatImpl(chatId)
+      }
+      if (error == null && topicRead != null && result is TdApi.ForumTopic &&
+          result.info?.chatId == topicRead.chatId && result.info.forumTopicId == topicRead.forumTopicId) {
+        val readKey = Key(topicRead.chatId, topicRead.forumTopicId)
+        // A batch can finish without a write when this read already has the desired state.
+        // Reconcile that authoritative value, but never let a pre-write read undo the write.
+        if (readKey in records || interested(readKey)) {
+          val previousInfo = records[readKey]?.value?.info
+          if (merge(readKey, result, readStamp)) {
+            lists.values.filter { it.key.chatId == readKey.chatId && it.key.query.isEmpty() && it.sessions.any { session -> session.live() } }
+              .forEach { it.ids.add(readKey) }
+            if (!sameInfo(previousInfo, records[readKey]?.value?.info)) invalidateSearch(readKey.chatId)
+          }
+          lists.values.filter { it.key.chatId == readKey.chatId }.forEach { trimPreview(it); updateStaleness(it) }
+          emitChat(readKey.chatId)
+          trim()
+          if (pendingTopics.isNotEmpty() || lists.values.any { it.dirty && it.sessions.isNotEmpty() }) scheduleReconciliation()
+        }
       }
       backend.publish { if (context == epoch) callback(if (error == null) result else null, error) }
     }
@@ -573,6 +697,9 @@ class ForumTopicStore(
   }
 
   companion object {
+    const val PREVIEW_ATTACH_DELAY_MS = 150L
+    const val PREVIEW_CACHE_MS = 60000L
+    const val MAX_PREVIEW_TOPICS = 16
     const val RECONCILE_DELAY_MS = 300L
     const val REQUEST_TIMEOUT_MS = 15000L
     const val MAX_TOPIC_REQUESTS = 4

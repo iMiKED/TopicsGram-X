@@ -20,13 +20,18 @@ internal class ForumTopicTestBackend : ForumTopicStore.Backend {
   private val publications = ArrayDeque<() -> Unit>()
   private val ownerTasks = ArrayDeque<() -> Unit>()
   var deferOwner = false
+  var immediateResponse: ((TdApi.Function<*>) -> TdApi.Object?)? = null
   private var time = 0L
   private var sequence = 0
   var publicationCount = 0
     private set
 
   override fun execute(action: () -> Unit) { if (deferOwner) ownerTasks.add(action) else action() }
-  override fun send(request: TdApi.Function<*>, callback: (TdApi.Object) -> Unit) { calls.add(Call(request, callback)) }
+  override fun send(request: TdApi.Function<*>, callback: (TdApi.Object) -> Unit) {
+    val call = Call(request, callback)
+    calls.add(call)
+    immediateResponse?.invoke(request)?.let { call.reply(it) }
+  }
   override fun schedule(delayMs: Long, action: () -> Unit) { timers.add(Task(time + delayMs, sequence++, action)) }
   override fun publish(action: () -> Unit) { publicationCount++; publications.add(action) }
   fun publish() { while (publications.isNotEmpty()) publications.removeFirst()() }

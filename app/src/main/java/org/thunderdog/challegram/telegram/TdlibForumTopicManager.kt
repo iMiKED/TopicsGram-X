@@ -35,6 +35,7 @@ class TdlibForumTopicManager(tdlib: Tdlib) : CleanupStartupDelegate, MessageList
   }
 
   fun openList(chatId: Long, query: String, observer: ForumTopicStore.ListObserver) = store.openList(chatId, query, observer)
+  fun openPreview(chatId: Long, observer: ForumTopicStore.ListObserver) = store.openPreview(chatId, observer)
   fun observeTopic(key: Key, observer: ForumTopicStore.TopicObserver) = store.observeTopic(key, observer)
   fun cachedList(chatId: Long, query: String) = store.cachedSnapshot(chatId, query)
   fun find(key: Key): Entry? = store.cachedTopic(key)?.let { Entry(key, it, null) }

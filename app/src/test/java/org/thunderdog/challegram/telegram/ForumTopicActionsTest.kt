@@ -103,6 +103,30 @@ class ForumTopicActionsTest {
     assertTrue(session.snapshot.stale)
   }
 
+  @Test fun latePreflightReadCannotUndoSuccessfulMutationOrConsumeItsInvalidation() {
+    val session = store.openList(100, "") { }
+    backend.next<TdApi.GetForumTopics>().reply(page(topic()))
+    store.perform(TdApi.GetForumTopic(key.chatId, key.forumTopicId), key.chatId, null,
+      TdApi.ForumTopic.CONSTRUCTOR, changesState = false) { _, error -> assertNull(error) }
+    val oldRead = backend.next<TdApi.GetForumTopic>()
+    actions.setClosed(key, true, ok)
+    store.updateInfo(topic().info.apply { isClosed = true })
+    backend.next<TdApi.ToggleForumTopicIsClosed>().reply(TdApi.Ok())
+    oldRead.reply(topic())
+    backend.publish()
+    assertTrue(store.cachedTopic(key)!!.info.isClosed)
+    assertTrue(session.snapshot.stale)
+
+    backend.advance()
+    backend.next<TdApi.GetForumTopics>().reply(page(topic().apply { info.isClosed = true }))
+    backend.next<TdApi.GetForumTopic>().reply(topic().apply { info.isClosed = true })
+    assertTrue(session.snapshot.topics.single().info.isClosed)
+    assertFalse(session.snapshot.stale)
+    backend.advance(60000)
+    assertEquals(1, backend.count<TdApi.ToggleForumTopicIsClosed>())
+    assertEquals(2, backend.count<TdApi.GetForumTopic>())
+  }
+
   @Test fun createReturnsInfoAndFetchesFullRow() {
     val session = store.openList(100, "") { }
     backend.next<TdApi.GetForumTopics>().reply(page())
