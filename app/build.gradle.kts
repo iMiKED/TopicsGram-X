@@ -3,6 +3,7 @@
 import androidx.baselineprofile.gradle.consumer.BaselineProfileConsumerExtension
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.BuildConfigField
+import com.android.build.api.variant.ResValue
 import com.android.build.api.variant.impl.VariantOutputImpl
 import com.android.build.gradle.tasks.ExternalNativeBuildTask
 import org.gradle.kotlin.dsl.support.uppercaseFirstChar
@@ -21,7 +22,6 @@ plugins {
 val config = tgxConfig.config.get()
 // A separate, account-isolated install for finite synthetic UI instrumentation, never a feature flag.
 val stage8Synthetic = providers.gradleProperty("stage8.synthetic").map { it.toBoolean() }.getOrElse(false)
-val effectiveApplicationId = config.applicationId + if (stage8Synthetic) ".stage8synthetic" else ""
 val generateBaselineProfile = tgxConfig.generateBaselineProfile.get()
 val useLegacyNdk = tgxConfig.useLegacyNdk.get()
 val appliedNdkVersion = if (useLegacyNdk) {
@@ -104,15 +104,9 @@ val generateExceptions = tasks.register<GenerateExceptionsTask>("updateException
     "generated/tgx/exceptions/java"
   ))
 }
-val validateApiTokens = tasks.register<ValidateApiTokensTask>("validateApiTokens") {
+val validateApiTokens = tasks.register("validateApiTokens") {
   group = "Setup"
-  description = "Validates some API tokens to make sure they work properly and won't cause problems"
-  applicationId.set(
-    config.applicationId
-  )
-  googleServicesJson.set(layout.projectDirectory.file(
-    "google-services.json"
-  ))
+  description = "Validates the Firebase Android client for every enabled application variant"
 }
 val fetchLocalizedStrings = tasks.register<FetchLocalizedStringsTask>("fetchLocalizedStrings") {
   group = "Setup"
@@ -316,14 +310,10 @@ android {
   }
 
   defaultConfig {
-    applicationId = effectiveApplicationId
+    applicationId = config.applicationId
     testInstrumentationRunner = "org.thunderdog.challegram.stage8.Stage8SyntheticInstrumentation"
     targetSdk = config.build.targetSdkVersion
     multiDexEnabled = true
-
-    resValue("string", "AppName", config.applicationName)
-    resValue("string", "account_type", "$effectiveApplicationId.sync.account")
-    resValue("string", "content_authority", "$effectiveApplicationId.sync.provider")
 
     buildConfigString("PROJECT_NAME", config.applicationName)
     buildConfigString("SAFETYNET_API_KEY", config.safetyNetToken)
@@ -467,6 +457,10 @@ android {
 
     versionCode = config.applicationVersion
     versionName = "${config.majorVersion}.${minorVersion}"
+  }
+
+  buildTypes.getByName("debug") {
+    applicationIdSuffix = AppVariantIdentity.debugSuffix(stage8Synthetic)
   }
 
   sourceSets.getByName("main") {
@@ -649,16 +643,38 @@ android {
   }
 
   androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
-      if (!config.isExperimentalBuild) {
-        variant.lifecycleTasks.registerPreBuild(validateApiTokens)
+    beforeVariants { variant ->
+      // Synthetic checks must never produce a release APK or reuse a real account's package.
+      if (stage8Synthetic && variant.buildType != "debug") {
+        variant.enable = false
       }
+    }
+    onVariants(selector().withBuildType("release")) { variant ->
       variant.sources.res?.addGeneratedSourceDirectory(
         fetchLocalizedStrings, FetchLocalizedStringsTask::resOutputDir
       )
     }
 
     onVariants { variant ->
+      val applicationName = AppVariantIdentity.applicationName(config.applicationName, variant.buildType == "debug")
+      variant.resValues.put(variant.makeResValueKey("string", "AppName"), ResValue(applicationName, "Build variant name"))
+      variant.resValues.put(variant.makeResValueKey("string", "account_type"), variant.applicationId.map { applicationId ->
+        ResValue(AppVariantIdentity.accountType(applicationId), "Final variant application ID")
+      })
+      variant.resValues.put(variant.makeResValueKey("string", "content_authority"), variant.applicationId.map { applicationId ->
+        ResValue(AppVariantIdentity.contentAuthority(applicationId), "Final variant application ID")
+      })
+      if (!config.isExperimentalBuild && !stage8Synthetic) {
+        val validateVariantApiTokens = tasks.register<ValidateApiTokensTask>("validate${variant.name.uppercaseFirstChar()}ApiTokens") {
+          group = "Setup"
+          description = "Validates the Firebase Android client for ${variant.name}"
+          applicationId.set(variant.applicationId)
+          googleServicesJson.set(layout.projectDirectory.file("google-services.json"))
+        }
+        variant.lifecycleTasks.registerPreBuild(validateVariantApiTokens)
+        validateApiTokens.configure { dependsOn(validateVariantApiTokens) }
+      }
+
       val abiFlavor = variant.productFlavors.first { it.first == "ABI" }.second
       val sdkFlavor = variant.productFlavors.first { it.first == "SDK" }.second
 
@@ -1103,7 +1119,7 @@ dependencies {
   compileOnly(libs.annotations.kotlin)
 }
 
-if (!config.isExperimentalBuild) {
+if (!config.isExperimentalBuild && !stage8Synthetic) {
   apply(plugin = libs.plugins.google.services.get().pluginId)
   if (config.isHuaweiBuild) {
     apply(plugin = libs.huawei.agconnect.get().group)
