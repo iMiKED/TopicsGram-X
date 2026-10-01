@@ -314,6 +314,9 @@ public class MessageView extends SparseDrawableView implements Destroyable, Draw
 
     message.resetTransformState();
     message.requestAvatar(avatarReceiver);
+    // A forum author avatar may be inside the header instead of in the outer gutter.
+    // Rebinding an equally tall row does not necessarily trigger onMeasure.
+    message.layoutAvatar(this, avatarReceiver);
     message.requestReactions(reactionsComplexReceiver);
     message.requestCommentsResources(avatarsReceiver, false);
     message.requestGiveawayAvatars(giveawayAvatarsReceiver, false);

@@ -217,6 +217,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   protected int mergeTime, mergeIndex;
 
   protected int width;
+  private boolean forumContentWidth;
   protected int height;
 
   protected String time;
@@ -863,7 +864,33 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   protected int getSmallestMaxContentWidth () {
-    return Math.min(pRealContentMaxWidth, Screen.smallestSide() - xPaddingRight - pRealContentX);
+    return Math.min(pRealContentMaxWidth, Screen.smallestSide() - getContentEndPadding() - pRealContentX);
+  }
+
+  protected final boolean useForumContentWidth () {
+    return forumContentWidth;
+  }
+
+  private boolean useForumHeaderAvatar () {
+    // Keep special, headerless content (stickers, round videos, service rows) unchanged.
+    // Do not depend on FLAG_HEADER_ENABLED: merged messages need the same left edge.
+    return forumContentWidth && useBubbles() && !headerDisabled() && needAvatar() && needName(true);
+  }
+
+  private static int getForumHeaderAvatarSize () {
+    return Screen.dp(24f);
+  }
+
+  private int getForumHeaderAvatarOffset () {
+    return useForumHeaderAvatar() ? getForumHeaderAvatarSize() + Screen.dp(8f) : 0;
+  }
+
+  private int getForumHeaderAvatarTop () {
+    return topContentEdge + xBubblePadding + (isPsa() && forceForwardOrImportInfo() && hPsaTextT != null ? getPsaTitleHeight() : 0);
+  }
+
+  private int getContentEndPadding () {
+    return forumContentWidth ? Screen.dp(8f) : xPaddingRight;
   }
 
   protected int getSmallestMaxContentHeight () {
@@ -878,7 +905,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
 
   private int computeBubbleLeft () {
     final int x;
-    if (needAvatar() && !isOutgoing()) {
+    if (needAvatar() && !isOutgoing() && !useForumHeaderAvatar()) {
       x = xBubbleLeft1 + Screen.dp(40f);
     } else {
       x = Device.NEED_BIGGER_BUBBLE_OFFSETS ? xBubbleLeft2 : xBubbleLeft1;
@@ -891,6 +918,10 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   private int getAuthorWidth () {
+    return getAuthorTextWidth() + (hAuthorNameT != null ? getForumHeaderAvatarOffset() : 0);
+  }
+
+  private int getAuthorTextWidth () {
     return hAuthorNameT != null ?
       hAuthorNameT.getWidth() + (hAuthorEmojiStatus != null ? hAuthorEmojiStatus.getWidth(Screen.dp(3)) : 0) + (hAuthorChatMark != null ? hAuthorChatMark.getWidth() + Screen.dp(16f) : 0) :
       needName(true) ? -Screen.dp(3f) : 0;
@@ -906,7 +937,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       if (needName(true) && (flags & FLAG_HEADER_ENABLED) != 0) {
         int nameWidth = getAuthorWidth();
         if (needAdminSign() && hAdminNameT != null) {
-          nameWidth += hAdminNameT.getWidth();
+          nameWidth += hAdminNameT.getWidth() + (useForumHeaderAvatar() ? Screen.dp(8f) : 0);
         }
         if (needDrawChannelIconInHeader() && hAuthorNameT != null) {
           nameWidth += isChannelHeaderCounter.getScaledWidth(Screen.dp(5));
@@ -1178,7 +1209,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   private static int getBubbleForwardOffset () {
-    return getBubbleNameHeight();
+    return Screen.dp(24f);
   }
 
   private int getBubbleReplyOffset () {
@@ -1206,18 +1237,21 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
   }
 
   public void buildLayout (int width) {
-    if (width == 0 || this.width == width) {
+    final boolean forumContentWidth = ForumMessageLayout.useWideContent(messagesController().isForumTabsHost(),
+      messagesController().getMessageTopicId(), isEventLog(), isThreadHeader());
+    if (width == 0 || this.width == width && this.forumContentWidth == forumContentWidth) {
       return;
     }
 
     this.width = width;
+    this.forumContentWidth = forumContentWidth;
 
     if (hasForumTopicButton() && !topicObserverRegistered) withTopicInfo(inPlace -> postInvalidate());
     clearForumTopicButton();
 
     if (useBubbles()) {
       pRealContentX = computeBubbleLeft();
-      pRealContentMaxWidth = width - (Device.NEED_BIGGER_BUBBLE_OFFSETS ? xBubbleLeft2 : xBubbleLeft1) - computeBubbleLeft() - (Screen.dp(isThreadHeader() ? 8f : 56f));
+      pRealContentMaxWidth = width - (Device.NEED_BIGGER_BUBBLE_OFFSETS ? xBubbleLeft2 : xBubbleLeft1) - computeBubbleLeft() - Screen.dp(ForumMessageLayout.bubbleGutterDp(forumContentWidth, isThreadHeader()));
 
       if (useForward()) {
         pRealContentX += Screen.dp(11f);
@@ -1237,7 +1271,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
         pRealContentX = xfContentLeft;
         pContentY = getForwardTop() + getForwardHeaderHeight();
       }
-      pRealContentMaxWidth = width - xPaddingRight - pRealContentX;
+      pRealContentMaxWidth = width - getContentEndPadding() - pRealContentX;
       if (isPsa()) {
         pContentY += getPsaTitleHeight();
       }
@@ -2102,9 +2136,16 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       if (needName(true)) {
         int left = useBubbles ? getActualLeftContentEdge() + xBubblePadding + xBubblePaddingSmall : xContentLeft;
         int top = useBubbles ? topContentEdge + xBubbleNameTop : xNameTop + getHeaderPadding();
+        final boolean headerAvatar = useForumHeaderAvatar();
+        final boolean rtlHeader = headerAvatar && Lang.rtl();
+        if (headerAvatar) {
+          left = ForumMessageLayout.headerAuthorLeft(rtlHeader, getInternalBubbleStartX(), getInternalBubbleEndX(),
+            getForumHeaderAvatarSize(), Screen.dp(8f), getAuthorTextWidth());
+        }
         boolean isPsa = isPsa() && forceForwardOrImportInfo();
         if (hAuthorNameT != null) {
-          int newTop = useBubbles ? topContentEdge + Screen.dp(9f) : getHeaderPadding() + Screen.dp(1f);
+          int newTop = headerAvatar ? topContentEdge + xBubblePadding + (getForumHeaderAvatarSize() - hAuthorNameT.getLineHeight(false)) / 2 :
+            useBubbles ? topContentEdge + Screen.dp(9f) : getHeaderPadding() + Screen.dp(1f);
           if (isPsa && hPsaTextT != null) {
             hPsaTextT.draw(c, left, left + hPsaTextT.getWidth(), 0, newTop);
             newTop += getPsaTitleHeight();
@@ -2126,11 +2167,16 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
         int right = getActualRightContentEdge() - xBubblePadding - xBubblePaddingSmall;
         if (useBubbles && needAdminSign() && hAdminNameT != null) {
           right -= hAdminNameT.getWidth();
-          int y = top - Screen.dp(1.5f);
-          hAdminNameT.draw(c, right, top - Screen.dp(12f));
+          int adminLeft = headerAvatar ? ForumMessageLayout.headerTrailingLeft(rtlHeader,
+            getInternalBubbleStartX(), getInternalBubbleEndX(), hAdminNameT.getWidth()) : right;
+          int adminTop = headerAvatar ? getForumHeaderAvatarTop() + (getForumHeaderAvatarSize() - hAdminNameT.getLineHeight(false)) / 2 : top - Screen.dp(12f);
+          hAdminNameT.draw(c, adminLeft, adminTop);
         }
         if (useBubbles && needDrawChannelIconInHeader() && hAuthorNameT != null) {
-          isChannelHeaderCounter.draw(c, (right - Screen.dp(6)), (top - Screen.dp(5)), Gravity.RIGHT | Gravity.BOTTOM, 1f, view, isOutgoing() ? ColorId.bubbleOut_time : ColorId.bubbleIn_time, isChannelHeaderCounterLastDrawRect);
+          int counterX = rtlHeader ? getInternalBubbleStartX() + (hAdminNameT != null ? hAdminNameT.getWidth() : 0) + Screen.dp(6f) : right - Screen.dp(6f);
+          int counterY = headerAvatar ? getForumHeaderAvatarTop() + getForumHeaderAvatarSize() / 2 : top - Screen.dp(5f);
+          int counterGravity = headerAvatar ? (rtlHeader ? Gravity.LEFT : Gravity.RIGHT) : Gravity.RIGHT | Gravity.BOTTOM;
+          isChannelHeaderCounter.draw(c, counterX, counterY, counterGravity, 1f, view, isOutgoing() ? ColorId.bubbleOut_time : ColorId.bubbleIn_time, isChannelHeaderCounterLastDrawRect);
         }
       }
     }
@@ -3372,10 +3418,12 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
 
       // header part
       int maxWidth = (allowMessageHorizontalExtend() ? pRealContentMaxWidth : getContentWidth()) + getBubblePaddingRight() + getBubblePaddingRight() - (xBubblePadding + xBubblePaddingSmall) * 2;
+      maxWidth -= getForumHeaderAvatarOffset();
 
       if (needAdminSign()) {
-        hAdminNameT = new Text.Builder(getAdministratorSign(), maxWidth, getTimeTextStyleProvider(), getDecentColorSet()).singleLine().build();
-        maxWidth -= hAdminNameT.getWidth();
+        int adminMaxWidth = useForumHeaderAvatar() ? Math.max(1, maxWidth / 3) : maxWidth;
+        hAdminNameT = new Text.Builder(getAdministratorSign(), adminMaxWidth, getTimeTextStyleProvider(), getDecentColorSet()).singleLine().build();
+        maxWidth -= hAdminNameT.getWidth() + (useForumHeaderAvatar() ? Screen.dp(8f) : 0);
       } else {
         hAdminNameT = null;
       }
@@ -3384,7 +3432,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       if (needName(true) && maxWidth > 0) {
         if (!forceForwardOrImportInfo() && sender.hasChatMark()) {
           hAuthorChatMark = makeChatMark(maxWidth);
-          maxWidth -= hAuthorChatMark.getWidth();
+          maxWidth -= hAuthorChatMark.getWidth() + (useForumHeaderAvatar() ? Screen.dp(16f) : 0);
         }
         isChannelHeaderCounter.showHide(needDrawChannelIconInHeader(), false);
         if (needDrawChannelIconInHeader()) {
@@ -4215,7 +4263,11 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
 
   public final void layoutAvatar (MessageView view, AvatarReceiver receiver) {
     int left, top, size;
-    if (useBubbles()) {
+    if (useForumHeaderAvatar()) {
+      size = getForumHeaderAvatarSize();
+      left = ForumMessageLayout.headerAvatarLeft(Lang.rtl(), getInternalBubbleStartX(), getInternalBubbleEndX(), size);
+      top = getForumHeaderAvatarTop();
+    } else if (useBubbles()) {
       left = xBubbleAvatarLeft;
       top = computeBubbleTop();
       size = xBubbleAvatarRadius * 2;
@@ -4224,7 +4276,7 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
       left = xAvatarLeft;
       size = xAvatarRadius * 2;
     }
-    if (Lang.rtl() && useBubbles()) {
+    if (Lang.rtl() && useBubbles() && !useForumHeaderAvatar()) {
       left = view.getMeasuredWidth() - left - size;
     }
     receiver.setBounds(left, top, left + size, top + size);
@@ -6189,8 +6241,8 @@ public abstract class TGMessage implements InvalidateContentProvider, TdlibDeleg
     return useForward() ? xBubblePadding + xBubblePaddingSmall : getBubbleContentPadding();
   }
 
-  private static int getBubbleNameHeight () {
-    return Screen.dp(24f);
+  private int getBubbleNameHeight () {
+    return Screen.dp(useForumHeaderAvatar() ? 32f : 24f);
   }
 
   private static int getPsaTitleHeight () {
