@@ -3389,6 +3389,11 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
     return supergroup != null && supergroup.isForum;
   }
 
+  public boolean hasForumTabs (long chatId) {
+    TdApi.Supergroup supergroup = chatToSupergroup(chatId);
+    return supergroup != null && supergroup.isForum && supergroup.hasForumTabs;
+  }
+
   public @Nullable TdApi.BlockList chatBlockList (TdApi.Chat chat) {
     return chat != null ? chatBlockList(chat.id) : null;
   }

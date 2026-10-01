@@ -10,6 +10,20 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class ForumNavigation {
   private ForumNavigation () { }
 
+  // TDLib ForumTopicId::general(), an int32 forum identity, NOT a message/thread id.
+  public static final int GENERAL_TOPIC_ID = 1;
+
+  public static boolean openTabs (boolean isForum, boolean hasForumTabs, @Nullable TdApi.MessageTopic topic,
+                                 boolean hasThread, boolean scheduled, boolean hasFilter, boolean hasPayload) {
+    return isForum && hasForumTabs && (topic == null || topic instanceof TdApi.MessageTopicForum) &&
+      !hasThread && !scheduled && !hasFilter && !hasPayload;
+  }
+
+  /** A saved common-stream anchor is not a user's request to change the selected tab. */
+  public static boolean resolveAnchorTopic (boolean explicitAnchor, boolean hasForumTabs) {
+    return explicitAnchor || !hasForumTabs;
+  }
+
   /** Latest user navigation wins; delayed metadata must not reopen an older target. */
   public static final class RequestGate {
     private final AtomicLong sequence = new AtomicLong();

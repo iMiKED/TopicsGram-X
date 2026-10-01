@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="ForumTabsLabel">Forum topic tabs</string>
+  <string name="ForumTabsAll">All</string>
+  <string name="ForumTabsAllDescription">All topics</string>
+  <string name="ForumTabsNew">New Topic</string>
+  <string name="ForumTabsSelected">Selected</string>
+  <string name="ForumTabsMoveTop">Move topic tabs to the top</string>
+  <string name="ForumTabsMoveStart">Move topic tabs to the side</string>
+  <string name="ForumTabsMoveBottom">Move topic tabs to the bottom</string>
+  <string name="ForumTabsLoading">Loading topics</string>
+  <string name="ForumTabsRetry">Could not load topics. Tap to retry.</string>
+  <string name="ForumTabsUnread">Unread messages: %1$d; mentions: %2$d; reactions: %3$d; poll votes: %4$d</string>
+</resources>

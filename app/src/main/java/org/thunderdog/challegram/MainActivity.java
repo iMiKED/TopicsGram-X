@@ -1366,6 +1366,13 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     return m != null ? m : createIfNeeded ? createMessagesController(tdlib) : null;
   }
 
+  /** The navigation stack, not this cache, owns destruction of the outgoing host. */
+  public void forgetMessagesController (MessagesController expected) {
+    if (messageControllers.get(expected.tdlib().id()) == expected) {
+      messageControllers.remove(expected.tdlib().id());
+    }
+  }
+
   private void openMainController (int accountId) {
     if (navigation.isEmpty()) {
       initDefault(accountId, true);

@@ -33,6 +33,8 @@ public final class ForumTopicUi implements ChatListener {
   private ForumTopicStore.ListSession pinsSession;
   private Boolean pendingViewMode;
   private boolean modeAccepted;
+  private int navigationGeneration;
+  private boolean navigatingTabs;
   private boolean destroyed;
   private ForumTopicActions.Batch batch;
   private AlertDialog batchProgress;
@@ -48,6 +50,7 @@ public final class ForumTopicUi implements ChatListener {
   public void destroy () {
     if (destroyed) return;
     destroyed = true;
+    ++navigationGeneration;
     if (batch != null) { batch.cancel(); batch = null; }
     if (batchProgress != null) { batchProgress.dismiss(); batchProgress = null; }
     pendingViewMode = null;
@@ -59,6 +62,8 @@ public final class ForumTopicUi implements ChatListener {
   public boolean isBusy () { return busy; }
 
   public void cancelPendingActions () {
+    ++navigationGeneration;
+    navigatingTabs = false;
     if (batch != null) { batch.cancel(); batch = null; }
     if (batchProgress != null) { batchProgress.dismiss(); batchProgress = null; }
     if (pinsSession != null) { pinsSession.close(); pinsSession = null; }
@@ -97,9 +102,9 @@ public final class ForumTopicUi implements ChatListener {
     });
   }
   private void menu (String title, List<String> labels, List<Runnable> actions) {
-    if (isActive() && !busy) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
+    if (isActive() && !busy && !navigatingTabs) owner.showAlert(new AlertDialog.Builder(owner.context(), Theme.dialogTheme())
       .setTitle(title).setItems(labels.toArray(new String[0]), (dialog, which) -> {
-        if (isActive() && !busy) actions.get(which).run();
+        if (isActive() && !busy && !navigatingTabs) actions.get(which).run();
       }).setNegativeButton(Lang.getString(R.string.Cancel), null));
   }
   private static void add (List<String> labels, List<Runnable> actions, int label, Runnable action) {
@@ -151,7 +156,19 @@ public final class ForumTopicUi implements ChatListener {
   }
 
   public void setViewMode (boolean topics) {
-    if (busy || !isActive()) return;
+    if (busy || navigatingTabs || !isActive()) return;
+    if (ForumTabsNavigation.isTabForum(owner, chatId)) {
+      pendingViewMode = null;
+      modeAccepted = false;
+      // Keep this separate from mutation busy: the host checks isBusy() before
+      // switching tabs, including when this command originates on that host.
+      navigatingTabs = true;
+      final int generation = ++navigationGeneration;
+      ForumTabsNavigation.openViewMode(owner, chatId, topics,
+        () -> isActive() && generation == navigationGeneration,
+        () -> { if (generation == navigationGeneration) navigatingTabs = false; });
+      return;
+    }
     pendingViewMode = topics; modeAccepted = false;
     run(cb -> tdlib.topics().actions.setViewAsTopics(chatId, topics, (ok, failure) -> {
       cb.onResult(ok, failure);
@@ -173,13 +190,17 @@ public final class ForumTopicUi implements ChatListener {
     openViewMode(owner, topics);
   }
 
-  /** Invoked only after reading the authoritative mode; does not mutate Chat.viewAsTopics. */
+  /** Classic mode follows the authoritative preference; tabforums use only local selection. */
   public static void openViewMode (ViewController<?> owner, boolean topics) {
     openViewMode(owner, topics, 8);
   }
 
   private static void openViewMode (ViewController<?> owner, boolean topics, int retries) {
     if (owner.isDestroyed() || !owner.isFocused() || owner.context().navigation().getCurrentStackItem() != owner) return;
+    if (ForumTabsNavigation.isTabForum(owner, owner.getChatId())) {
+      ForumTabsNavigation.openViewMode(owner, owner.getChatId(), topics, () -> !owner.isDestroyed(), () -> { });
+      return;
+    }
     TdApi.Chat chat = owner.tdlib().chat(owner.getChatId());
     if (chat == null || chat.viewAsTopics != topics) return;
     if (owner.context().isNavigationBusy()) {

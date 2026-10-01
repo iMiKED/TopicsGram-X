@@ -29,6 +29,7 @@ import org.thunderdog.challegram.U;
 import org.thunderdog.challegram.config.Config;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.ForumDraftCodec;
+import org.thunderdog.challegram.data.ForumTabsState;
 import org.thunderdog.challegram.theme.ChatStyle;
 import org.thunderdog.challegram.theme.TGBackground;
 import org.thunderdog.challegram.theme.Theme;
@@ -75,6 +76,85 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   private static final String DISMISS_MESSAGE_PREFIX = "dismiss_pinned_";
   private static final String DISMISS_REQUESTS_PREFIX = "dismiss_requests_";
   private static final String FORUM_DRAFT_PREFIX = "forum_draft_";
+  private static final String FORUM_TABS_STATE_PREFIX = "forum_tabs_state_";
+  private static final String FORUM_TABS_MRU_KEY = "forum_tabs_mru";
+  private long forumTabsStateEpoch;
+
+  private String forumTabsStateKey (long chatId) {
+    return key(FORUM_TABS_STATE_PREFIX + chatId, tdlib.id());
+  }
+
+  /** Read state and this token together under synchronized (settings) when creating a host. */
+  public synchronized long getForumTabsStateEpoch () {
+    return forumTabsStateEpoch;
+  }
+
+  /** Missing state does not occupy an MRU slot; reading stored state promotes its chat. */
+  public synchronized ForumTabsState getForumTabsState (long chatId) {
+    if (chatId == 0) {
+      return ForumTabsState.defaultState();
+    }
+    LevelDB pmc = Settings.instance().pmc();
+    int[] encoded;
+    try {
+      encoded = pmc.getIntArray(forumTabsStateKey(chatId));
+    } catch (IllegalStateException ignored) {
+      // Malformed stored array. No topic identity can safely be inferred from it.
+      return ForumTabsState.defaultState();
+    }
+    if (encoded != null) {
+      // Preserve the original record, including unknown versions, when only touching MRU.
+      storeForumTabsState(pmc, chatId, encoded, true);
+    }
+    return ForumTabsState.decode(encoded);
+  }
+
+  /** Unconditional write; hosts that can outlive cleanup must use the epoch overload. */
+  public synchronized void putForumTabsState (long chatId, @NonNull ForumTabsState state) {
+    if (chatId == 0) {
+      throw new IllegalArgumentException("Expected a nonzero chat ID");
+    }
+    storeForumTabsState(Settings.instance().pmc(), chatId, state.encode(), false);
+  }
+
+  /** Rejects stale hosts before touching storage, including the MRU index. */
+  public synchronized boolean putForumTabsState (long chatId, @NonNull ForumTabsState state, long expectedEpoch) {
+    if (expectedEpoch != forumTabsStateEpoch) {
+      return false;
+    }
+    putForumTabsState(chatId, state);
+    return true;
+  }
+
+  private void storeForumTabsState (LevelDB pmc, long chatId, int[] encoded, boolean onlyTouch) {
+    String indexKey = key(FORUM_TABS_MRU_KEY, tdlib.id());
+    long[] previous;
+    try {
+      previous = pmc.getLongArray(indexKey);
+    } catch (IllegalStateException ignored) {
+      previous = null;
+    }
+    long[] updated = ForumTabsStateMru.touch(previous, chatId);
+    if (onlyTouch && Arrays.equals(previous, updated)) {
+      return;
+    }
+    // State, index and eviction are committed together, never touching draft keys.
+    LevelDB editor = pmc.edit();
+    if (previous == null || previous.length == 0) {
+      // A lost/unreadable index has no recoverable ordering. Drop only orphaned tabs
+      // records for this account so they cannot accumulate outside the bounded index.
+      editor.removeByPrefix(key(FORUM_TABS_STATE_PREFIX, tdlib.id()));
+    } else {
+      for (long previousChatId : previous) {
+        if (!ForumTabsStateMru.contains(updated, previousChatId)) {
+          editor.remove(forumTabsStateKey(previousChatId));
+        }
+      }
+    }
+    editor.putIntArray(forumTabsStateKey(chatId), encoded);
+    editor.putLongArray(indexKey, updated);
+    editor.apply();
+  }
 
   public static final class LocalForumDraft {
     @Nullable public final TdApi.DraftMessage draft;
@@ -201,7 +281,9 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   public void onPerformRestart () { }
 
   @Override
-  public void onPerformUserCleanup () {
+  public synchronized void onPerformUserCleanup () {
+    // Invalidate existing hosts before deleting data, under the same lock as guarded writes.
+    forumTabsStateEpoch++;
     Settings prefs = Settings.instance();
 
     SharedPreferences.Editor editor = prefs.edit();
@@ -217,6 +299,7 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     editor.remove(key(THEME_GLOBAL_THEME_NIGHT_KEY, accountId));
     editor.remove(key(THEME_GLOBAL_THEME_DAYLIGHT_KEY, accountId));
     editor.remove(key(LOCAL_CHAT_IDS_COUNT, accountId));
+    editor.remove(key(FORUM_TABS_MRU_KEY, accountId));
     editor.remove(key(MAIN_CHAT_LIST_ENABLED, accountId));
     editor.remove(key(ARCHIVE_CHAT_LIST_ENABLED, accountId));
     editor.remove(key(ARCHIVE_CHAT_LIST_POSITION, accountId));
@@ -243,7 +326,8 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
       conversionPrefix,
       localChatIdPrefix,
       remoteChatIdPrefix,
-      key(FORUM_DRAFT_PREFIX, accountId)
+      key(FORUM_DRAFT_PREFIX, accountId),
+      key(FORUM_TABS_STATE_PREFIX, accountId)
     }, editor);
     editor.apply();
 

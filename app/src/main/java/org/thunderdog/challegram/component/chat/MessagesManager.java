@@ -2589,6 +2589,8 @@ public class MessagesManager implements Client.ResultHandler, MessagesSearchMana
     return !(inSpecialMode() || readMessagesDisabled());
   }
 
+  public void saveForumTabsAnchor () { saveScrollPosition(); }
+
   private void saveScrollPosition () {
     if (!canRead()) {
       return;

@@ -41,6 +41,7 @@ import org.thunderdog.challegram.theme.ThemeListenerList;
 import org.thunderdog.challegram.theme.ThemeManager;
 import org.thunderdog.challegram.tool.UI;
 import org.thunderdog.challegram.tool.Views;
+import org.thunderdog.challegram.ui.MessagesController;
 import org.thunderdog.challegram.unsorted.Settings;
 import org.thunderdog.challegram.unsorted.Size;
 import org.thunderdog.challegram.widget.ShadowView;
@@ -530,6 +531,26 @@ public class NavigationController implements Future<View>, ThemeChangeListener, 
         processor.setController(controller);
       }
     }
+  }
+
+  /** Replace one history atomically, preserving the caller's Back destination. UI thread only. */
+  public boolean replaceCurrent (ViewController<?> expected, ViewController<?> replacement) {
+    if (!UI.inUiThread() || isAnimating() || getStack().isLocked() || getStack().getCurrent() != expected || expected.isDestroyed()) return false;
+    replacement.getValue();
+    if (expected.inSearchMode()) getHeaderView().closeSearchMode(false, null);
+    if (expected.inSelectMode()) getHeaderView().closeSelectMode(true, false);
+    // A controller may veto leaving a nested search mode. Never retire it while
+    // that search still owns callbacks or the header is transforming.
+    if (expected.inSearchMode() || expected.inSelectMode() || getHeaderView().isAnimating()) return false;
+    expected.onBlur();
+    removeChildWrapper(expected);
+    if (expected instanceof MessagesController) ((MessagesController) expected).retireForumTabsController();
+    getStack().replace(getStack().getCurrentIndex(), replacement);
+    addChildWrapper(replacement);
+    getHeaderView().setTitle(replacement);
+    replacement.onFocus();
+    forumContainer.refresh();
+    return true;
   }
 
   public ViewController<?> getPendingController () {

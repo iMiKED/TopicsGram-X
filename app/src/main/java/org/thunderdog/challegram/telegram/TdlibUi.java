@@ -1742,6 +1742,8 @@ public class TdlibUi extends Handler {
   private static final int CHAT_OPTION_OPEN_DIRECT_MESSAGES_CHAT = 1 << 8;
   private static final int CHAT_OPTION_FORUM_MESSAGES = 1 << 9;
   private static final int CHAT_OPTION_TOPIC_RESOLVED = 1 << 10;
+  private static final int CHAT_OPTION_RESTORED_ANCHOR = 1 << 11;
+  private static final int CHAT_OPTION_TABS_RESOLVED = 1 << 12;
   private final ForumNavigation.RequestGate chatOpenRequests = new ForumNavigation.RequestGate();
 
   private boolean acceptChatOpen (ChatOpenParameters params) {
@@ -1751,8 +1753,72 @@ public class TdlibUi extends Handler {
     return false;
   }
 
+  private boolean opensForumTabs (TdApi.Chat chat, ChatOpenParameters params) {
+    return ForumNavigation.openTabs(tdlib.isForum(chat.id), tdlib.hasForumTabs(chat.id), params.messageTopicId,
+      params.threadInfo != null, (params.options & CHAT_OPTION_SCHEDULED_MESSAGES) != 0, params.filter != null,
+      params.shareItem != null || !Td.isEmpty(params.fillDraft) || params.videoChatOrLiveStreamInvitation != null ||
+        !StringUtils.isEmpty(params.searchQuery) && params.foundMessage == null);
+  }
+
+  /** Cached controllers can leave the stack without becoming isDestroyed(). */
+  private static final class ForumMetadataOrigin implements NavigationStack.ChangeListener {
+    private final TdlibDelegate context;
+    private final Tdlib account;
+    private final NavigationController navigation;
+    private final ViewController<?> owner, current;
+    private final Object ownerArguments, currentArguments;
+    private final long ownerChatId, currentChatId;
+    private final boolean ownerInStack;
+    private boolean abandoned, listening;
+
+    ForumMetadataOrigin (TdlibDelegate context) {
+      this.context = context;
+      account = context.tdlib();
+      navigation = context.context().navigation();
+      owner = context instanceof ViewController ? (ViewController<?>) context : null;
+      current = navigation != null ? navigation.getCurrentStackItem() : null;
+      ownerArguments = owner != null ? owner.getArguments() : null;
+      currentArguments = current != null ? current.getArguments() : null;
+      ownerChatId = owner != null ? owner.getChatId() : 0;
+      currentChatId = current != null ? current.getChatId() : 0;
+      ownerInStack = navigation != null && owner != null && navigation.getStack().indexOf(owner) >= 0;
+      abandoned = !matches();
+      if (!abandoned) {
+        navigation.getStack().addChangeListener(this);
+        listening = true;
+      }
+    }
+
+    private boolean matches () {
+      return context.tdlib() == account && context.context().navigation() == navigation && navigation != null &&
+        navigation.getCurrentStackItem() == current &&
+        (current == null || !current.isDestroyed() && current.getArguments() == currentArguments && current.getChatId() == currentChatId) &&
+        (owner == null || !owner.isDestroyed() && owner.getArguments() == ownerArguments && owner.getChatId() == ownerChatId &&
+          (!ownerInStack || navigation.getStack().indexOf(owner) >= 0));
+    }
+
+    boolean isCurrent () { return !abandoned && matches(); }
+
+    @Override public void onStackChanged (NavigationStack stack) {
+      if (!matches()) {
+        // Even leaving and returning to the same cached object abandons the
+        // original request. A snapshot-only check would miss that round trip.
+        abandoned = true;
+        close();
+      }
+    }
+
+    void close () {
+      if (listening) {
+        listening = false;
+        navigation.getStack().removeChangeListener(this);
+      }
+    }
+  }
+
   public static class ChatOpenParameters {
     private long requestTicket;
+    private boolean awaitingForumMetadata;
     public int options;
     public RunnableLong after;
     public Runnable onDone;
@@ -1959,6 +2025,12 @@ public class TdlibUi extends Handler {
       this.highlightMessageId = highlightMessageId;
       return this;
     }
+
+    public ChatOpenParameters restoreAnchor (int highlightMode, MessageId messageId) {
+      highlightMessage(highlightMode, messageId);
+      options |= CHAT_OPTION_RESTORED_ANCHOR;
+      return this;
+    }
   }
 
   private void showChatOpenError (TdApi.Function<?> createRequest, TdApi.Error error, @Nullable ChatOpenParameters parameters) {
@@ -2058,6 +2130,43 @@ public class TdlibUi extends Handler {
     if (params == null) { openChat(context, chatFinal, new ChatOpenParameters()); return; }
     if (!UI.inUiThread()) { tdlib.ui().post(() -> openChat(context, chatFinal, params)); return; }
     if (!acceptChatOpen(params)) return;
+    if (chatFinal.type instanceof TdApi.ChatTypeSupergroup && tdlib.chatToSupergroup(chatFinal.id) == null) {
+      if (params.awaitingForumMetadata) return;
+      final ForumMetadataOrigin origin = new ForumMetadataOrigin(context);
+      if (!origin.isCurrent()) {
+        origin.close();
+        params.onDone();
+        return;
+      }
+      params.awaitingForumMetadata = true;
+      tdlib.send(new TdApi.GetSupergroup(((TdApi.ChatTypeSupergroup) chatFinal.type).supergroupId), (group, error) -> tdlib.ui().post(() -> {
+        params.awaitingForumMetadata = false;
+        origin.close();
+        if (!acceptChatOpen(params) || !origin.isCurrent()) {
+          params.onDone();
+          return;
+        }
+        if (group != null && tdlib.chatToSupergroup(chatFinal.id) != null) openChat(context, chatFinal, params);
+        else {
+          params.onDone();
+          if (context instanceof ViewController) ((ViewController<?>) context).showAlert(new AlertDialog.Builder(context.context(), Theme.dialogTheme())
+            .setMessage(Lang.getString(R.string.ForumTopicLoadFailed))
+            .setPositiveButton(Lang.getString(R.string.ForumEditorRetry), (dialog, which) -> {
+              if (origin.isCurrent()) openChat(context, chatFinal, params);
+            })
+            .setNegativeButton(Lang.getString(R.string.Cancel), null));
+          else UI.showToast(R.string.ForumTopicLoadFailed, Toast.LENGTH_SHORT);
+        }
+      }));
+      return;
+    }
+    // Payload, filtered and scheduled routes remain standalone histories; their
+    // restored anchors must not be discarded merely because the chat has tabs.
+    if ((params.options & CHAT_OPTION_RESTORED_ANCHOR) != 0 && opensForumTabs(chatFinal, params)) {
+      params.highlightSet = false;
+      params.highlightMessageId = null;
+      params.options &= ~CHAT_OPTION_RESTORED_ANCHOR;
+    }
     if (params != null && params.highlightMessageId != null) {
       params.highlightMessageId = new MessageId(chatFinal.id, params.highlightMessageId.getMessageId(), params.highlightMessageId.getOtherMessageIds());
     }
@@ -2183,7 +2292,16 @@ public class TdlibUi extends Handler {
     final boolean onlyScheduled = (options & CHAT_OPTION_SCHEDULED_MESSAGES) != 0;
     final TdApi.InternalLinkTypeVideoChat voiceChatInvitation = params != null ? params.videoChatOrLiveStreamInvitation : null;
     final ThreadInfo messageThread = params != null ? params.threadInfo : null;
-    final TdApi.MessageTopic messageTopicId = params != null ? params.messageTopicId : null;
+    final boolean forumTabs = opensForumTabs(chat, params);
+    if (forumTabs && (params.options & CHAT_OPTION_TABS_RESOLVED) == 0) {
+      params.options |= CHAT_OPTION_TABS_RESOLVED;
+      if (params.messageTopicId == null && !params.highlightSet && (options & CHAT_OPTION_FORUM_MESSAGES) == 0) {
+        Integer saved = tdlib.settings().getForumTabsState(chat.id).selectedTopicId;
+        int selected = saved != null ? saved : ForumNavigation.GENERAL_TOPIC_ID;
+        params.messageTopicId = selected != 0 ? new TdApi.MessageTopicForum(selected) : null;
+      }
+    }
+    final TdApi.MessageTopic messageTopicId = params.messageTopicId;
     final TdApi.SearchMessagesFilter filter = params != null ? params.filter : null;
     final MessagesController.Referrer referrer = params != null && !StringUtils.isEmpty(params.inviteLink) ? new MessagesController.Referrer(params.inviteLink) : null;
     final TdApi.FormattedText forceDraft = params != null && !Td.isEmpty(params.fillDraft) ? params.fillDraft : null;
@@ -2207,10 +2325,10 @@ public class TdlibUi extends Handler {
       return;
     }
 
-    if (tdlib.isForum(chat.id) && !onlyScheduled && messageThread == null) {
+    if (tdlib.isForum(chat.id) && !tdlib.hasForumTabs(chat.id) && !onlyScheduled && messageThread == null) {
       navigation.forumContainer().enable(tdlib, chatList);
     }
-    if (ForumNavigation.openTopicList(tdlib.isForum(chat.id), chat.viewAsTopics, messageTopicId, messageThread != null,
+    if (ForumNavigation.openTopicList(tdlib.isForum(chat.id) && !tdlib.hasForumTabs(chat.id), chat.viewAsTopics, messageTopicId, messageThread != null,
         params != null && params.highlightSet, onlyScheduled, filter != null,
         shareItem != null || forceDraft != null || voiceChatInvitation != null || params != null && !StringUtils.isEmpty(params.searchQuery),
         (options & CHAT_OPTION_FORUM_MESSAGES) != 0)) {
@@ -2232,6 +2350,16 @@ public class TdlibUi extends Handler {
     }
 
     final boolean isSelfChat = tdlib.isSelfChat(chat.id);
+
+    if (forumTabs && context instanceof MessagesController && navigation.getCurrentStackItem() == context && context.tdlib() == tdlib &&
+        ((MessagesController) context).isForumTabsHost() && ((MessagesController) context).getChatId() == chat.id &&
+        !((MessagesController) context).compareChat(chat.id, messageThread, messageTopicId, onlyScheduled)) {
+      int topicId = messageTopicId instanceof TdApi.MessageTopicForum ? ((TdApi.MessageTopicForum) messageTopicId).forumTopicId : 0;
+      boolean changed = ((MessagesController) context).openForumTab(topicId, params.highlightSet ? highlightMessageId : null, highlightMode);
+      if (changed && after != null) after.runWithLong(chat.id);
+      params.onDone();
+      return;
+    }
 
     boolean doneOpen = false;
     if (context instanceof MessagesController && context.tdlib() == tdlib && !((MessagesController) context).inPreviewMode() && ((MessagesController) context).compareChat(chat.id, messageThread, messageTopicId, onlyScheduled)) {
@@ -2286,7 +2414,7 @@ public class TdlibUi extends Handler {
 
     ViewController<?> current = context.context().navigation().getCurrentStackItem();
 
-    if (!(context.context() instanceof MainActivity) || context instanceof MessagesController || isSelfChat || current == ((MainActivity) context.context()).getMessagesController(tdlib, false)) {
+    if (forumTabs || !(context.context() instanceof MainActivity) || context instanceof MessagesController || isSelfChat || current == ((MainActivity) context.context()).getMessagesController(tdlib, false)) {
       controller = new MessagesController(context.context(), context.tdlib());
     } else {
       MessagesController m = ((MainActivity) context.context()).getMessagesController(tdlib, true);
@@ -2311,7 +2439,7 @@ public class TdlibUi extends Handler {
     }
 
     controller.setShareItem(shareItem);
-    if (ForumHistory.isForum(messageTopicId) && !onlyScheduled) {
+    if (ForumHistory.isForum(messageTopicId) && !onlyScheduled && !forumTabs) {
       controller.addOneShotFocusListener(() -> ensureForumParent(controller, chat, chatList));
     }
     if (params != null && (params.options & CHAT_OPTION_PASSCODE_UNLOCKED) != 0) {
@@ -2344,6 +2472,8 @@ public class TdlibUi extends Handler {
       arguments = new MessagesController.Arguments(tdlib, chatList, chat, messageThread, messageTopicId, filter);
     }
     controller.setArguments(arguments
+      .forumTabs(forumTabs)
+      .suppressForumTabs(shareItem != null || forceDraft != null || voiceChatInvitation != null)
       .setScheduled(onlyScheduled)
       .referrer(referrer)
       .voiceChatInvitation(voiceChatInvitation)
@@ -2352,6 +2482,7 @@ public class TdlibUi extends Handler {
 
     View view = controller.getValue();
     if (controller.context().isNavigationBusy()) {
+      if (forumTabs) controller.destroy();
       if (params != null) {
         params.onDone();
       }

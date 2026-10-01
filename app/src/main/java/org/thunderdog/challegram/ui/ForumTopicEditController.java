@@ -83,6 +83,10 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     if (owner.isDestroyed()) return;
     ForumTopicEditController controller = new ForumTopicEditController(owner.context(), owner.tdlib());
     controller.setArguments(new Arguments(chatId, topicId));
+    if (topicId == 0) {
+      controller.originTabsHost = ForumTabsNavigation.findHost(owner, chatId);
+      controller.returnToTabs = controller.originTabsHost != null;
+    }
     if (!owner.navigateTo(controller)) controller.destroy();
   }
 
@@ -95,6 +99,8 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
   private long supergroupId;
   private boolean subscribed, metadataFailed, metadataMissing, binding, defaultsLoaded, pickerLoading;
   private boolean nameTouched, checking, finishing, catalogFailed;
+  private boolean returnToTabs, finishScheduled;
+  private MessagesController originTabsHost;
   private int pickerGeneration, catalogGeneration, pendingCatalog, mutationGeneration;
   private String query = "", category = "", pickerError = "", selectionError = "", reconcileText = "";
   private long selectedSet;
@@ -497,7 +503,7 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
       tdlib.topics().actions.create(getChatId(), form.submittedName(), false, new TdApi.ForumTopicIcon(form.color(), form.emoji()), (value, failure) -> {
         if (isDestroyed() || mutation != mutationGeneration || submitted != form) return;
         if (failure != null) form.failed(failure.code, failureText(failure));
-        else if (value != null && value.chatId == getChatId()) form.succeeded(value.forumTopicId);
+        else if (value != null && value.chatId == getChatId() && value.forumTopicId > 0) form.succeeded(value.forumTopicId);
         else form.failed(502, Lang.getString(R.string.ForumEditorServerError));
         updateForm();
         if (form.phase() == ForumTopicEditorState.Phase.UNKNOWN) reconcile();
@@ -520,15 +526,40 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
 
   private void finishIfReady () {
     if (isDestroyed() || !isFocused() || finishing || form == null || form.phase() != ForumTopicEditorState.Phase.SUCCEEDED) return;
-    if (context().isNavigationBusy()) { tdlib.ui().postDelayed(this::finishIfReady, 120); return; }
+    final NavigationController navigation = context().navigation();
+    if (navigation == null || navigation.getCurrentStackItem() != this) return;
+    if (context().isNavigationBusy() || navigation.getStack().isLocked()) { scheduleFinish(); return; }
+    if (form.creating && returnToTabs && ForumTabsNavigation.isTabForum(this, getChatId())) {
+      if (!ForumTabsNavigation.isLiveHost(this, getChatId(), originTabsHost)) originTabsHost = ForumTabsNavigation.findHost(this, getChatId());
+      if (originTabsHost != null) {
+        finishing = true;
+        ForumTabsNavigation.Result result = ForumTabsNavigation.requestAndReturn(this, originTabsHost, form.completedTopicId());
+        if (result == ForumTabsNavigation.Result.RETURNED || result == ForumTabsNavigation.Result.QUEUED && navigateBack()) {
+          form.claimCompletion();
+          return;
+        }
+        finishing = false;
+        if (result == ForumTabsNavigation.Result.RETRY || result == ForumTabsNavigation.Result.QUEUED) scheduleFinish();
+        // A live host rejecting a request must not create a duplicate host. A
+        // later focus can retry navigation, but never repeat the Create mutation.
+        return;
+      }
+    }
     if (!form.claimCompletion()) return;
     finishing = true;
     if (!form.creating) { navigateBack(); return; }
-    final NavigationController navigation = context().navigation();
     tdlib.ui().openChat(this, getChatId(), new TdlibUi.ChatOpenParameters()
       .messageTopic(new TdApi.MessageTopicForum(form.completedTopicId())).keepStack().after(chatId ->
         tdlib.ui().post(() -> removeCompletedEditor(navigation))));
   }
+
+  private void scheduleFinish () {
+    if (finishScheduled) return;
+    finishScheduled = true;
+    tdlib.ui().postDelayed(() -> { finishScheduled = false; finishIfReady(); }, 120);
+  }
+
+  boolean canReturnToForumTabs () { return ForumTabsNavigation.canLeaveEditor(form); }
 
   private void removeCompletedEditor (NavigationController navigation) {
     if (isDestroyed() || navigation == null) return;
@@ -783,6 +814,7 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     out.putInt(prefix + "editor_account", tdlib.id());
     out.putLong(prefix + "editor_chat", getChatId());
     out.putInt(prefix + "editor_topic", getArgumentsStrict().topicId);
+    out.putBoolean(prefix + "editor_tabs_origin", returnToTabs);
     if (form != null) out.putSerializable(prefix + "editor_form", form.snapshot());
     out.putString(prefix + "editor_query", query);
     out.putString(prefix + "editor_category", category);
@@ -801,11 +833,14 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     if (chatId == 0 || topicId < 0 || in.getInt(prefix + "editor_account", -1) != tdlib.id()) return false;
     super.restoreInstanceState(in, prefix);
     setArguments(new Arguments(chatId, topicId));
+    returnToTabs = topicId == 0 && in.getBoolean(prefix + "editor_tabs_origin", false);
+    originTabsHost = null; // Resolve only within the restored account/chat stack.
     Object saved = in.getSerializable(prefix + "editor_form");
     if (saved instanceof ForumTopicEditorState.Snapshot) {
       ForumTopicEditorState.Snapshot snapshot = (ForumTopicEditorState.Snapshot) saved;
       if (snapshot.creating != (topicId == 0)) return false;
       form = ForumTopicEditorState.restore(snapshot);
+      finishing = snapshot.completionConsumed;
       if (!snapshot.creating && snapshot.phase == ForumTopicEditorState.Phase.PENDING) selectionError = Lang.getString(R.string.ForumEditorRestoredEdit);
     }
     query = in.getString(prefix + "editor_query", "");

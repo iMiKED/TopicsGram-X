@@ -167,7 +167,7 @@ public final class ForumNavigationContainer extends FrameLayoutFix implements Na
     if (current instanceof ForumTopicsController) {
       ForumTopicsController topics = (ForumTopicsController) current;
       enable(topics.tdlib(), topics.getArgumentsStrict().chatList);
-    } else if (current instanceof MessagesController && current.getChatId() != 0 && current.tdlib().isForum(current.getChatId())) {
+    } else if (current instanceof MessagesController && current.getChatId() != 0 && current.tdlib().isForum(current.getChatId()) && !current.tdlib().hasForumTabs(current.getChatId())) {
       enable(current.tdlib(), ((MessagesController) current).chatList());
     }
     if (session && current.tdlib() != tdlib) {
