@@ -15,6 +15,7 @@ import org.thunderdog.challegram.telegram.ForumTopicStore;
 import org.thunderdog.challegram.telegram.ForumUnreadCounter;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibForumTopicManager;
+import org.thunderdog.challegram.tool.DrawAlgorithms;
 import org.thunderdog.challegram.tool.Fonts;
 import org.thunderdog.challegram.tool.Paints;
 import org.thunderdog.challegram.tool.Screen;
@@ -222,7 +223,7 @@ final class ForumChatTopics {
         emoji.draw(c, Math.round(iconX + (iconSize - emoji.getWidth()) / 2f), Math.round(iconY + (iconSize - emoji.getHeight()) / 2f), null, 1f, receiver);
       } else {
         paint.setColor(0xff000000 | item.color);
-        c.drawRoundRect(iconX, iconY, iconX + iconSize, iconY + iconSize - Screen.dp(2), Screen.dp(5), Screen.dp(5), paint);
+        DrawAlgorithms.drawRoundRect(c, Screen.dp(5), iconX, iconY, iconX + iconSize, iconY + iconSize - Screen.dp(2), paint);
         tail.reset(); tail.moveTo(iconX + Screen.dp(2), iconY + iconSize - Screen.dp(5));
         tail.lineTo(iconX + Screen.dp(2), iconY + iconSize); tail.lineTo(iconX + Screen.dp(7), iconY + iconSize - Screen.dp(3)); tail.close();
         c.drawPath(tail, paint);

@@ -13,6 +13,8 @@ import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.CheckBox;
 
+import androidx.core.view.ViewCompat;
+
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.core.Lang;
@@ -24,6 +26,7 @@ import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibSettingsManager;
 import org.thunderdog.challegram.theme.Theme;
 import org.thunderdog.challegram.theme.ColorId;
+import org.thunderdog.challegram.tool.DrawAlgorithms;
 import org.thunderdog.challegram.tool.Drawables;
 import org.thunderdog.challegram.tool.PorterDuffPaint;
 import org.thunderdog.challegram.tool.Fonts;
@@ -34,6 +37,9 @@ import org.thunderdog.challegram.util.text.TextColorSets;
 
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
+
+import me.vkryl.android.AnimatorUtils;
+import me.vkryl.android.animator.FactorAnimator;
 import tgx.td.Td;
 
 /** Two text lines. Topic counters and outgoing delivery are intentionally independent. */
@@ -52,7 +58,7 @@ public final class ForumTopicView extends View {
   private String preview = "", time = "";
   private boolean hasDraft, muted, selectionMode;
   private float selectionFactor;
-  private ValueAnimator selectionAnimator;
+  private FactorAnimator selectionAnimator;
   private Drawable delivery;
   private int deliveryColor = ColorId.iconLight;
   private int counterColumns = 1;
@@ -85,13 +91,18 @@ public final class ForumTopicView extends View {
     selectionMode = mode;
     setSelected(selected);
     float target = mode ? 1f : 0f;
-    if (selectionAnimator != null) { selectionAnimator.cancel(); selectionAnimator = null; }
-    if (animate && !Settings.instance().needReduceMotion() && (Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled()) && isAttachedToWindow() && selectionFactor != target) {
-      selectionAnimator = ValueAnimator.ofFloat(selectionFactor, target);
-      selectionAnimator.setDuration(180);
-      selectionAnimator.addUpdateListener(a -> { selectionFactor = (float) a.getAnimatedValue(); invalidate(); });
-      selectionAnimator.start();
-    } else selectionFactor = target;
+    if (animate && !Settings.instance().needReduceMotion() && (Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled()) && ViewCompat.isAttachedToWindow(this) && selectionFactor != target) {
+      if (selectionAnimator == null) {
+        selectionAnimator = new FactorAnimator(0, (id, factor, fraction, animator) -> {
+          selectionFactor = factor;
+          invalidate();
+        }, AnimatorUtils.ACCELERATE_DECELERATE_INTERPOLATOR, 180L, selectionFactor);
+      }
+      selectionAnimator.animateTo(target);
+    } else {
+      if (selectionAnimator != null) selectionAnimator.forceFactor(target);
+      selectionFactor = target;
+    }
     requestLayout(); invalidate();
   }
 
@@ -202,7 +213,7 @@ public final class ForumTopicView extends View {
     } else {
       float r = size / 2;
       paint.setColor(0xff000000 | (topic.info.icon != null ? topic.info.icon.color : 0x6fb9f0));
-      c.drawRoundRect(cx-r, cy-r, cx+r, cy+r-1, r/2, r/2, paint);
+      DrawAlgorithms.drawRoundRect(c, r/2, cx-r, cy-r, cx+r, cy+r-1, paint);
       path.reset(); path.moveTo(cx-r+size*.15f, cy+r-size*.3f); path.lineTo(cx-r+size*.15f, cy+r); path.lineTo(cx, cy+r-size*.15f); path.close(); c.drawPath(path, paint);
       String name = topic.info.name;
       String letter = topic.info.isGeneral || name.isEmpty() ? "#" : name.substring(0, name.offsetByCodePoints(0, 1));
@@ -253,7 +264,7 @@ public final class ForumTopicView extends View {
       float logical = end-counterWidth-(i%counterColumns)*(counterWidth+gap), left = rtl ? getWidth()-logical-counterWidth : logical;
       float y = top+(i/counterColumns)*(chipHeight+gap);
       paint.setColor(muted ? Theme.badgeMutedColor() : Theme.badgeColor());
-      c.drawRoundRect(left, y, left+counterWidth, y+chipHeight, chipHeight/2, chipHeight/2, paint);
+      DrawAlgorithms.drawRoundRect(c, chipHeight/2, left, y, left+counterWidth, y+chipHeight, paint);
       setPaint(11, Theme.badgeTextColor(), true); paint.setTextAlign(Paint.Align.CENTER);
       c.drawText(counters.get(i), left+counterWidth/2, y+chipHeight/2-(paint.ascent()+paint.descent())/2, paint);
     }
@@ -265,13 +276,13 @@ public final class ForumTopicView extends View {
     customEmoji = null; emojiId = 0; receiver.clear();
   }
   public void clear () {
-    if (selectionAnimator != null) selectionAnimator.cancel();
+    if (selectionAnimator != null) selectionAnimator.forceFactor(0f);
     clearEmoji(); topic = null; selectionFactor = 0; selectionMode = false; setSelected(false); setContentDescription(null);
   }
   @Override protected void onAttachedToWindow () { super.onAttachedToWindow(); receiver.attach(); }
   @Override protected void onDetachedFromWindow () {
-    if (selectionAnimator != null) selectionAnimator.cancel();
     selectionFactor = selectionMode ? 1f : 0f;
+    if (selectionAnimator != null) selectionAnimator.forceFactor(selectionFactor);
     receiver.detach(); super.onDetachedFromWindow();
   }
 }

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.text.Editable;
@@ -49,6 +50,7 @@ import org.thunderdog.challegram.telegram.TdlibUi;
 import org.thunderdog.challegram.theme.ColorId;
 import org.thunderdog.challegram.theme.ColorState;
 import org.thunderdog.challegram.theme.Theme;
+import org.thunderdog.challegram.tool.DrawAlgorithms;
 import org.thunderdog.challegram.tool.Fonts;
 import org.thunderdog.challegram.tool.Paints;
 import org.thunderdog.challegram.tool.Screen;
@@ -158,7 +160,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
 
   @Override protected View onCreateView (Context context) {
     recycler = new RecyclerView(context);
-    recycler.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      recycler.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    }
     ViewSupport.setThemedBackground(recycler, ColorId.background, this);
     recycler.setClipToPadding(false);
     recycler.setPadding(Screen.dp(12), Screen.dp(12), Screen.dp(12), Screen.dp(12) + extraBottomInset);
@@ -228,7 +232,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
   private LinearLayout column () {
     LinearLayout view = new LinearLayout(context());
     view.setOrientation(LinearLayout.VERTICAL);
-    view.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      view.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    }
     return view;
   }
 
@@ -281,7 +287,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     count.setGravity(Gravity.END);
     card.addView(count);
     nameError = label(13, ColorId.textNegative);
-    nameError.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      nameError.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    }
     card.addView(nameError);
     colors = new LinearLayout(context());
     int[] colorLabels = {R.string.ForumColorBlue, R.string.ForumColorYellow, R.string.ForumColorPurple, R.string.ForumColorGreen, R.string.ForumColorPink, R.string.ForumColorRed};
@@ -306,7 +314,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     hint.setPadding(Screen.dp(4), Screen.dp(10), Screen.dp(4), Screen.dp(10));
     content.addView(hint);
     error = label(14, ColorId.textNegative);
-    error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    }
     content.addView(error);
     retryTopic = button(Lang.getString(R.string.ForumEditorRetry), () -> {
       metadataMissing = false; metadataFailed = false; tdlib.topics().retryTopic(key()); updateForm();
@@ -339,7 +349,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     pickerHeader.addView(heading);
     pickerStatus = label(14, ColorId.textLight);
     pickerStatus.setGravity(Gravity.CENTER);
-    pickerStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      pickerStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    }
     pickerHeader.addView(pickerStatus);
     retryPicker = button(Lang.getString(R.string.ForumEditorRetry), this::loadCatalog);
     pickerHeader.addView(retryPicker);
@@ -363,10 +375,16 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
     Context context = searchInput.getContext();
     LinearLayout row = new LinearLayout(context);
     row.setGravity(Gravity.CENTER_VERTICAL);
-    row.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      row.setLayoutDirection(Lang.rtl() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+    }
     ViewSupport.setThemedBackground(row, ColorId.background, this).setCornerRadius(24);
     searchInput.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-    searchInput.setPaddingRelative(Screen.dp(16), Screen.dp(8), Screen.dp(8), Screen.dp(8));
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      searchInput.setPaddingRelative(Screen.dp(16), Screen.dp(8), Screen.dp(8), Screen.dp(8));
+    } else {
+      searchInput.setPadding(Screen.dp(16), Screen.dp(8), Screen.dp(8), Screen.dp(8));
+    }
     row.addView(searchInput, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
     clearSearchButton = new ImageButton(context);
@@ -976,14 +994,14 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
       if (isSelected()) {
         paint.setColor(Theme.getColor(ColorId.textLink));
         paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(Screen.dp(2));
-        canvas.drawRoundRect(Screen.dp(3), Screen.dp(3), getWidth()-Screen.dp(3), getHeight()-Screen.dp(3), Screen.dp(10), Screen.dp(10), paint);
+        DrawAlgorithms.drawRoundRect(canvas, Screen.dp(10), Screen.dp(3), Screen.dp(3), getWidth()-Screen.dp(3), getHeight()-Screen.dp(3), paint);
         paint.setStyle(Paint.Style.FILL);
       }
       if (emoji != null) emoji.draw(canvas, (int) (cx - emoji.getWidth()/2f), (int) (cy - emoji.getHeight()/2f), null, locked ? .55f : 1f, receiver);
       else {
         float r = Screen.dp(18);
         paint.setColor(0xff000000 | (form != null ? form.color() : ForumTopicPolicy.ICON_COLORS[0]));
-        canvas.drawRoundRect(cx-r, cy-r, cx+r, cy+r-Screen.dp(3), Screen.dp(11), Screen.dp(11), paint);
+        DrawAlgorithms.drawRoundRect(canvas, Screen.dp(11), cx-r, cy-r, cx+r, cy+r-Screen.dp(3), paint);
         tail.reset(); tail.moveTo(cx-r+Screen.dp(3), cy+r-Screen.dp(8));
         tail.lineTo(cx-r+Screen.dp(3), cy+r+Screen.dp(2)); tail.lineTo(cx-r+Screen.dp(15), cy+r-Screen.dp(4)); tail.close();
         canvas.drawPath(tail, paint);
@@ -995,9 +1013,9 @@ public final class ForumTopicEditController extends ViewController<ForumTopicEdi
         paint.setColor(Theme.getColor(ColorId.iconLight));
         float x = getWidth()-Screen.dp(12), y = getHeight()-Screen.dp(12);
         paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(Screen.dp(1.5f));
-        canvas.drawRoundRect(x-Screen.dp(3), y-Screen.dp(7), x+Screen.dp(3), y, Screen.dp(3), Screen.dp(3), paint);
+        DrawAlgorithms.drawRoundRect(canvas, Screen.dp(3), x-Screen.dp(3), y-Screen.dp(7), x+Screen.dp(3), y, paint);
         paint.setStyle(Paint.Style.FILL);
-        canvas.drawRoundRect(x-Screen.dp(5), y-Screen.dp(2), x+Screen.dp(5), y+Screen.dp(5), Screen.dp(2), Screen.dp(2), paint);
+        DrawAlgorithms.drawRoundRect(canvas, Screen.dp(2), x-Screen.dp(5), y-Screen.dp(2), x+Screen.dp(5), y+Screen.dp(5), paint);
       }
     }
 

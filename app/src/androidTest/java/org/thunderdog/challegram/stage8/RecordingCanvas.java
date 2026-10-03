@@ -1,5 +1,6 @@
 package org.thunderdog.challegram.stage8;
 
+import android.annotation.TargetApi;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -22,6 +23,7 @@ public final class RecordingCanvas extends Canvas implements AutoCloseable {
 
   public final Bitmap bitmap;
   public final List<Mark> marks = new ArrayList<>();
+  private boolean drawingRoundRect;
 
   public RecordingCanvas (int width, int height) {
     this(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888));
@@ -48,9 +50,24 @@ public final class RecordingCanvas extends Canvas implements AutoCloseable {
     super.drawText(text, x, y, paint);
   }
 
+  @Override public void drawRoundRect (RectF rect, float rx, float ry, Paint paint) {
+    boolean nested = drawingRoundRect;
+    if (!nested) mark("roundRect", rect, paint.getColor());
+    drawingRoundRect = true;
+    try {
+      // API 21+ may dispatch to the float overload; record this primitive only once.
+      super.drawRoundRect(rect, rx, ry, paint);
+    } finally { drawingRoundRect = nested; }
+  }
+
+  @TargetApi(21)
   @Override public void drawRoundRect (float left, float top, float right, float bottom, float rx, float ry, Paint paint) {
-    mark("roundRect", new RectF(left, top, right, bottom), paint.getColor());
-    super.drawRoundRect(left, top, right, bottom, rx, ry, paint);
+    boolean nested = drawingRoundRect;
+    if (!nested) mark("roundRect", new RectF(left, top, right, bottom), paint.getColor());
+    drawingRoundRect = true;
+    try {
+      super.drawRoundRect(left, top, right, bottom, rx, ry, paint);
+    } finally { drawingRoundRect = nested; }
   }
 
   @Override public void drawCircle (float cx, float cy, float radius, Paint paint) {
