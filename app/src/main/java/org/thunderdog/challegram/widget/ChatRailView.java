@@ -20,6 +20,7 @@ import org.thunderdog.challegram.loader.AvatarReceiver;
 import org.thunderdog.challegram.navigation.ForumRailTransition;
 import org.thunderdog.challegram.support.RippleSupport;
 import org.thunderdog.challegram.telegram.ChatListListener;
+import org.thunderdog.challegram.telegram.ForumUnreadCounter;
 import org.thunderdog.challegram.telegram.NotificationSettingsListener;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibChatList;
@@ -257,6 +258,8 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
       .callback(this).outlineColor(ColorId.filling).build();
     final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     long chatId;
+    boolean attached;
+    ForumUnreadCounter.Subscription unreadSubscription;
     RailRow (Context context) {
       super(context);
       avatar.setAvatarRadiusPropertyIds(PropertyId.AVATAR_RADIUS_CHAT_LIST, PropertyId.AVATAR_RADIUS_CHAT_LIST_FORUM);
@@ -267,20 +270,34 @@ public final class ChatRailView extends FrameLayout implements ChatListListener,
       avatar.detach();
     }
     void bind (long id) {
+      if (chatId != id) stopUnreadUpdates();
       chatId = id;
-      TdApi.Chat chat = tdlib.chat(id);
       avatar.requestChat(tdlib, id, AvatarReceiver.Options.SHOW_ONLINE);
-      boolean muted = !tdlib.chatNotificationsEnabled(id);
-      counter.setCount(chat == null ? 0 : chat.unreadCount > 0 ? chat.unreadCount : chat.isMarkedAsUnread ? Tdlib.CHAT_MARKED_AS_UNREAD : 0, muted, false);
       setSelected(id == selectedChat);
+      startUnreadUpdates();
+      updateCounter();
+    }
+    void updateCounter () {
+      TdApi.Chat chat = tdlib.chat(chatId);
+      boolean muted = !tdlib.chatNotificationsEnabled(chatId);
+      int unreadCount = chat != null ? tdlib.topics().unreadCount(chat) : 0;
+      counter.setCount(unreadCount, muted, false);
       setContentDescription((chat != null ? chat.title : "") + (muted ? ", " + Lang.getString(R.string.ForumRailMuted) : "") +
-        (chat != null && chat.unreadCount > 0 ? ", " + Lang.getString(R.string.ForumRailUnread, chat.unreadCount) : ""));
+        (unreadCount > 0 ? ", " + Lang.getString(tdlib.isForum(chatId) ? R.string.ForumRailUnreadTopics : R.string.ForumRailUnread, unreadCount) : ""));
       invalidate();
     }
-    void clear () { chatId = 0; avatar.clear(); }
-    void destroy () { avatar.destroy(); }
-    @Override protected void onAttachedToWindow () { super.onAttachedToWindow(); avatar.attach(); }
-    @Override protected void onDetachedFromWindow () { avatar.detach(); super.onDetachedFromWindow(); }
+    void startUnreadUpdates () {
+      if (!tdlib.isForum(chatId)) { stopUnreadUpdates(); return; }
+      if (attached && unreadSubscription == null && !tdlib.hasPasscode(chatId)) {
+        final long id = chatId;
+        unreadSubscription = tdlib.topics().observeUnread(id, count -> { if (attached && chatId == id) updateCounter(); });
+      }
+    }
+    void stopUnreadUpdates () { if (unreadSubscription != null) { unreadSubscription.close(); unreadSubscription = null; } }
+    void clear () { stopUnreadUpdates(); chatId = 0; avatar.clear(); }
+    void destroy () { stopUnreadUpdates(); avatar.destroy(); }
+    @Override protected void onAttachedToWindow () { super.onAttachedToWindow(); attached = true; avatar.attach(); startUnreadUpdates(); updateCounter(); }
+    @Override protected void onDetachedFromWindow () { attached = false; stopUnreadUpdates(); avatar.detach(); super.onDetachedFromWindow(); }
     @Override public void onInitializeAccessibilityNodeInfo (AccessibilityNodeInfo info) { super.onInitializeAccessibilityNodeInfo(info); info.setClassName("android.widget.Button"); info.setSelected(isSelected()); }
     @Override protected void onDraw (Canvas canvas) {
       drawContents(canvas, 1f);

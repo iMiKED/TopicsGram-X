@@ -317,6 +317,13 @@ public class TGChat implements TdlibStatusManager.HelperTarget, ContentPreview.R
 
   public int getPreviewCounterWidth () { return getCounterAddWidth(); }
 
+  public void updateForumUnread () {
+    if (forum) {
+      setCounter(needAnimateChanges());
+      currentViews.invalidate();
+    }
+  }
+
   private @Nullable TdApi.DraftMessage getPreviewDraft () {
     TdApi.DraftMessage chatDraft = chat != null ? chat.draftMessage : null;
     return forum && forumDraft != null && (!ForumChatPreview.hasTextDraft(chatDraft) || forumDraft.date >= chatDraft.date) ? forumDraft : chatDraft;
@@ -859,7 +866,7 @@ public class TGChat implements TdlibStatusManager.HelperTarget, ContentPreview.R
 
     reactionsCounter.setCount(hasReactions ? Tdlib.CHAT_MARKED_AS_UNREAD : 0, !notificationsEnabled(), allowAnimation && needAnimateChanges());
     mentionCounter.setCount(hasMentions ? Tdlib.CHAT_MARKED_AS_UNREAD : 0, false, allowAnimation && needAnimateChanges());
-    counter.setCount(hasMentions && unreadCount == 1 ? 0 : unreadCount, !notificationsEnabled(), allowAnimation && needAnimateChanges());
+    counter.setCount(!forum && hasMentions && unreadCount == 1 ? 0 : unreadCount, !notificationsEnabled(), allowAnimation && needAnimateChanges());
   }
 
   public boolean needAnimateChanges () {
@@ -876,7 +883,7 @@ public class TGChat implements TdlibStatusManager.HelperTarget, ContentPreview.R
     } else if (getSource() != null) {
       return 0;
     } else {
-      return chat.unreadCount > 0 ? chat.unreadCount : chat.isMarkedAsUnread ? Tdlib.CHAT_MARKED_AS_UNREAD : 0;
+      return tdlib.topics().unreadCount(chat);
     }
   }
 

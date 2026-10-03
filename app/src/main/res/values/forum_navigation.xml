@@ -2,4 +2,5 @@
   <string name="ForumRailChats">Chats</string>
   <string name="ForumRailMuted">Notifications muted</string>
   <string name="ForumRailUnread">Unread messages: %1$d</string>
+  <string name="ForumRailUnreadTopics">Unread topics: %1$d</string>
 </resources>

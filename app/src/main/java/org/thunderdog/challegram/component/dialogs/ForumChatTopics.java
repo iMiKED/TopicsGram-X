@@ -12,6 +12,7 @@ import org.thunderdog.challegram.data.TGChat;
 import org.thunderdog.challegram.loader.ComplexReceiver;
 import org.thunderdog.challegram.receiver.RefreshRateLimiter;
 import org.thunderdog.challegram.telegram.ForumTopicStore;
+import org.thunderdog.challegram.telegram.ForumUnreadCounter;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibForumTopicManager;
 import org.thunderdog.challegram.tool.Fonts;
@@ -36,6 +37,7 @@ final class ForumChatTopics {
   private boolean attached;
   private int generation;
   private ForumTopicStore.ListSession session;
+  private ForumUnreadCounter.Subscription unreadSubscription;
   private ForumTopicStore.TopicSubscription leadingSubscription;
   private int leadingId;
   private TdApi.Error leadingError;
@@ -84,6 +86,7 @@ final class ForumChatTopics {
   private void close () {
     generation++;
     if (session != null) { session.close(); session = null; }
+    if (unreadSubscription != null) { unreadSubscription.close(); unreadSubscription = null; }
     if (leadingSubscription != null) { leadingSubscription.close(); leadingSubscription = null; }
     leadingId = 0;
     leadingError = null;
@@ -101,6 +104,9 @@ final class ForumChatTopics {
       final int ticket = generation;
       session = tdlib.topics().openPreview(chat.getChatId(), snapshot -> {
         if (ticket == generation && attached && session != null) refresh();
+      });
+      unreadSubscription = tdlib.topics().observeUnread(chat.getChatId(), count -> {
+        if (ticket == generation && attached) chat.updateForumUnread();
       });
     }
     refresh();
