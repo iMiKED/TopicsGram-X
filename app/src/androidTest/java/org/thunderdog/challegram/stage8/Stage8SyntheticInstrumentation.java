@@ -129,6 +129,7 @@ public final class Stage8SyntheticInstrumentation extends Instrumentation {
     ForumEmojiSlotChecks.register(cases);
     org.thunderdog.challegram.ui.ForumTopicEditorSearchChecks.register(cases);
     registerForumTabsChecks(cases);
+    cases.add(new Case("notification_read_scope_survives_android_bundle", Stage8SyntheticInstrumentation::notificationReadScope));
     Handler main = new Handler(Looper.getMainLooper());
     int failed = 0, completed = 0;
     long deadline = SystemClock.elapsedRealtime() + 90000;
@@ -189,6 +190,34 @@ public final class Stage8SyntheticInstrumentation extends Instrumentation {
     result.putString("stream", "\nStage8 synthetic: " + completed + "/" + cases.size() +
       " completed, " + failed + " failed. Synthetic presentation checks only.\n");
     finish(failed == 0 && completed == cases.size() ? Activity.RESULT_OK : Activity.RESULT_CANCELED, result);
+  }
+
+  private static void notificationReadScope (SyntheticEnvironment env) throws Exception {
+    for (boolean legacy : new boolean[] {false, true}) {
+      android.content.Intent intent = new android.content.Intent();
+      intent.putExtra("account_id", 0);
+      intent.putExtra("category", 0);
+      intent.putExtra("chat_id", -900000001L);
+      intent.putExtra("max_notification_id", 42);
+      intent.putExtra("notification_group_id", 3);
+      intent.putExtra("need_reply", true);
+      intent.putExtra("mentions", true);
+      intent.putExtra("message_ids", new long[] {101, 102});
+      tgx.td.Td.put(intent, "topic_id", new TdApi.MessageTopicForum(9));
+      if (!legacy) intent.putExtra("read_forum_topic_ids", new int[] {7, 9});
+      android.os.Parcel parcel = android.os.Parcel.obtain();
+      try {
+        parcel.writeBundle(intent.getExtras());
+        parcel.setDataPosition(0);
+        org.thunderdog.challegram.telegram.TdlibNotificationExtras extras =
+          org.thunderdog.challegram.telegram.TdlibNotificationExtras.parse(parcel.readBundle(Stage8SyntheticInstrumentation.class.getClassLoader()));
+        require(extras != null && extras.areMentions, "Notification extras survive real Android parceling");
+        equal(9, ((TdApi.MessageTopicForum) extras.topicId).forumTopicId, "Latest topic remains the open/reply destination");
+        int[] scope = (int[]) get(extras, "readForumTopicIds");
+        require(legacy ? scope == null : Arrays.equals(new int[] {7, 9}, scope),
+          "Aggregate read scope stays independent; legacy intents never borrow the latest topic");
+      } finally { parcel.recycle(); }
+    }
   }
 
   // These additions leave the original registrations and pre-Application security guards

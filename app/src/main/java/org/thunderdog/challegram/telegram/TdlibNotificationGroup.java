@@ -21,6 +21,7 @@ import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.data.ForumHistory;
 import org.thunderdog.challegram.data.ForumNavigation;
+import org.thunderdog.challegram.data.ForumNotificationReadScope;
 import org.thunderdog.challegram.unsorted.Settings;
 
 import java.util.ArrayList;
@@ -108,6 +109,16 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
     TdlibNotification last = lastNotification();
     TdApi.MessageTopic topic = last != null ? ForumNavigation.notificationTopic(last.getNotificationContent()) : null;
     return ForumHistory.isForum(topic) ? topic : null;
+  }
+
+  @Nullable
+  public int[] getMentionReadForumTopicIds () {
+    // Include all cached notifications: removing the group is not limited to its visible rows.
+    List<TdApi.NotificationType> content = new ArrayList<>(notifications.size());
+    for (TdlibNotification notification : notifications) {
+      content.add(notification.getNotificationContent());
+    }
+    return ForumNotificationReadScope.topicIds(totalCount, content);
   }
 
   public boolean isSelfChat () {
