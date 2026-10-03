@@ -136,6 +136,28 @@ class NativeBuildHostTest {
   }
 
   @Test
+  fun armAssemblyCopyUsesLfBeforeAds2gasConversion() {
+    val source = temporary.newFolder("checkout").resolve("idct_neon.asm")
+    val original = "    INCLUDE ./vpx_config.asm\r\n    AREA text, CODE\r\n".toByteArray()
+    source.writeBytes(original)
+    val generated = temporary.newFolder("prepared").resolve(source.name)
+    source.copyTo(generated)
+    normalizeNativeScript(generated)
+    assertEquals("    INCLUDE ./vpx_config.asm\n    AREA text, CODE\n", generated.readText())
+    assertArrayEquals(original, source.readBytes())
+    normalizeNativeScript(generated)
+    assertFalse(generated.readText().contains('\r'))
+  }
+
+  @Test
+  fun assemblyNormalizationIsCaseInsensitiveAndPreservesLoneCr() {
+    val file = temporary.newFile("legacy.ASM")
+    file.writeBytes(byteArrayOf(-1, 13, 10, 13, 42))
+    normalizeNativeScript(file)
+    assertArrayEquals(byteArrayOf(-1, 10, 13, 42), file.readBytes())
+  }
+
+  @Test
   fun scriptNormalizationPreservesNonUtf8BytesAndLoneCr() {
     val file = temporary.newFile("legacy-encoding.pl")
     file.writeBytes(byteArrayOf(-1, 13, 10, 13, 42))

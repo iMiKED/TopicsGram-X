@@ -56,7 +56,8 @@ fun File.nativePath(): String = absolutePath.replace('\\', '/')
 /** Applied only to generated copies: never rewrite a third-party checkout. */
 fun normalizeNativeScript(file: File) {
   if (file.name == "configure" || file.name.startsWith("Makefile") ||
-    file.extension.lowercase(Locale.ROOT) in setOf("sh", "pl", "mk", "mak")) {
+    // libvpx's ads2gas converter includes a trailing CR in ARM INCLUDE filenames.
+    file.extension.lowercase(Locale.ROOT) in setOf("sh", "pl", "mk", "mak", "asm")) {
     val original = file.readBytes()
     val normalized = ByteArray(original.size)
     var length = 0
