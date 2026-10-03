@@ -1,5 +1,6 @@
 package tgx.gradle.task
 
+import org.gradle.api.GradleException
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -55,5 +56,49 @@ class TaskFunctionsTest {
     writeToFile(file) { it.append("same") }
     assertEquals(modified, file.lastModified())
     assertFalse(file.resolveSibling("${file.name}.temp").exists())
+  }
+
+  @Test
+  fun failedWriterClosesAndRemovesTemporaryFile() {
+    val file = temporary.newFile("writer-failure")
+    file.writeText("original")
+    val failure = IllegalStateException("test writer failure")
+    try {
+      writeToFile(file) {
+        it.append("incomplete")
+        throw failure
+      }
+      fail("Expected the writer failure")
+    } catch (actual: IllegalStateException) {
+      assertSame(failure, actual)
+    }
+    assertEquals("original", file.readText())
+    assertFalse(file.resolveSibling("${file.name}.temp").exists())
+    writeToFile(file) { it.append("recovered") }
+    assertEquals("recovered", file.readText())
+  }
+
+  @Test
+  fun copyTruncatesDestinationAndReleasesBothFiles() {
+    val source = temporary.newFile("copy-source")
+    val target = temporary.newFile("copy-target")
+    source.writeText("short")
+    target.writeText("a much longer previous value")
+    copyOrReplace(source, target)
+    assertEquals("short", target.readText())
+    assertTrue(source.delete())
+    assertTrue(target.delete())
+  }
+
+  @Test
+  fun copyToSameFileFailsWithoutTruncation() {
+    val file = temporary.newFile("same-file")
+    file.writeText("preserved")
+    try {
+      copyOrReplace(file, file)
+      fail("Expected same-file rejection")
+    } catch (_: GradleException) {
+      assertEquals("preserved", file.readText())
+    }
   }
 }
