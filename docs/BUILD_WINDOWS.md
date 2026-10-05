@@ -45,6 +45,21 @@ The app's generated-source and native-library directory arguments use forward sl
 
 ## Checks
 
+### Verification on 2026-10-05
+
+At fork revision `4493005b`, after merging upstream `805209e6`:
+
+- JDK 25, Gradle 9.8.0, MSYS2 and the configured Windows SDK were used without WSL.
+- All 29 build-infrastructure tests passed, including the real MSYS2 argument check and explicit MSYS2-root precedence.
+- `latestArm64Debug` and signed/R8-shrunk `latestArm64Release` passed with NDK 27.3.13750724. `legacyArm32Debug` passed with `-PuseLegacyNdk=true` and NDK 23.2.8568313.
+- Native tasks ran against the updated pins; both FFmpeg variants report `e594a51859`. TDLib/OpenSSL prebuilts remain at their pinned upstream revisions, not locally rebuilt substitutes.
+- APK identity, service configuration, native inputs and signatures passed validation; modern APKs passed 16 KiB alignment, legacy passed the required v1 signature check.
+- All 56 recursive submodules match their pins without tracked edits. Source text uses LF, with only the intentional CRLF checkout of `gradlew.bat`.
+
+These are the three tested configurations, not all-ABI certification. Credentials, signing material, APKs, local harnesses and device captures are not part of this repository.
+
+### Repeatable build checks
+
 ```powershell
 ./gradlew.bat -p buildSrc test
 ./gradlew.bat :app:patchOpus :app:buildLibvpxLatestArm64
