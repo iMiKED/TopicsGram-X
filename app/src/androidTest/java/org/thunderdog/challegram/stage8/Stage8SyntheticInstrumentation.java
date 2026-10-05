@@ -128,6 +128,7 @@ public final class Stage8SyntheticInstrumentation extends Instrumentation {
     ForumMediaSizingChecks.register(cases);
     ForumEmojiSlotChecks.register(cases);
     org.thunderdog.challegram.ui.ForumTopicEditorSearchChecks.register(cases);
+    org.thunderdog.challegram.ui.ForumTopicProfileActionChecks.register(cases);
     registerForumTabsChecks(cases);
     cases.add(new Case("notification_read_scope_survives_android_bundle", Stage8SyntheticInstrumentation::notificationReadScope));
     Handler main = new Handler(Looper.getMainLooper());
