@@ -1,6 +1,8 @@
-# Experimental Windows native build support
+# Windows native build support
 
-This branch adds Windows host support for the libvpx, FFmpeg and Opus preparation tasks. It uses the Windows JDK and Android SDK/NDK, plus MSYS2 for the POSIX configure/make scripts.
+Upstream now supports Windows hosts for libvpx, FFmpeg and Opus preparation. This fork uses that implementation and the standard `msys2.dir` setting, plus the source-copy/version/log safeguards described below. Use the Windows JDK and Android SDK/NDK, plus MSYS2 for POSIX configure/make scripts.
+
+The integration baseline is upstream `805209e6` (2026-10-05), including its FFmpeg update, multidex startup fix and OpenGL intro fallback. The earlier results below are historical, not validation of that new baseline. See the dated acceptance records for current checks.
 
 Build verification on 2026-09-27/28 used app revision `9291ce110ccc852c0b7043b92f4ac19c4e651242` plus this branch's build changes: `assembleLatestArm64Debug`, APK metadata/signature checks, and repeat incremental builds with unchanged APK SHA-256. All 17 build-infrastructure tests passed, including the real MSYS2 argument test. These results cover ARM64 debug builds only, not other ABIs/flavors or release signing. Device test data and credentials are not part of this repository.
 
@@ -19,16 +21,21 @@ Git for Windows includes Bash and Perl, but does not normally include the MSYS G
 
 Configure the normal ignored `local.properties`, including `sdk.dir` pointing to the Windows SDK and the Telegram credentials. Do not commit credentials or pass them as command-line arguments.
 
-MSYS2 defaults to `C:/msys64`. For a different installation, set this variable in the PowerShell session that launches Gradle:
+Set the MSYS2 installation in ignored `local.properties`, using forward slashes and a path without whitespace:
+
+```properties
+msys2.dir=C:/Tools/msys64
+```
+
+The old `TGX_MSYS2_ROOT` environment variable is no longer needed to select tools for Gradle tasks; explicit `msys2.dir` takes precedence. It remains an optional input for the standalone host-helper runtime tests.
 
 ```powershell
-$env:TGX_MSYS2_ROOT = 'D:/Tools/msys64'
 ./gradlew.bat :app:assembleLatestArm64Debug
 ```
 
 This is an ARM64 debug build for the latest SDK flavor, not a verification of every ABI/flavor. A production release additionally requires the project's normal signing and service configuration.
 
-The adapter passes configure scripts directly to MSYS2 Bash without profile scripts or a `bash -c` command string. It invokes MSYS Make/Perl directly and prepends the selected MSYS `usr/bin` to the child process PATH. This preserves arguments containing spaces when launched from Java on Windows. Windows NDK binary tools use their `.exe` filenames. The target-prefixed Clang entry points are shell scripts provided by the NDK and run inside the selected shell.
+The upstream helpers pass configure scripts directly to MSYS2 Bash, without a `bash -c` command string. They invoke MSYS Make/Perl and Windows NDK `.exe` tools directly, use POSIX paths for configure, and pass `--target` to Clang instead of the old target-prefixed wrapper scripts. The fork retains PATH-case handling in its native command environment. CMake still receives Windows paths with forward slashes, not MSYS drive paths.
 
 For Windows, libvpx and FFmpeg are copied into task-local directories below `app/build/tmp`; configure/make scripts in those copies are normalized to LF without changing other bytes. Source submodules are not rewritten. FFmpeg's version is resolved from the original checkout before building the copy, to avoid accidentally using the parent app's Git revision. Native build outputs and logs remain under `app/build/generated/tgx`. Configure and Make stages append to their build log, so an error does not discard the previous stage's diagnostics.
 

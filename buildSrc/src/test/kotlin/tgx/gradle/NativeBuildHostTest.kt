@@ -27,6 +27,17 @@ class NativeBuildHostTest {
   }
 
   @Test
+  fun configuredMsysRootTakesPriorityOverLegacyEnvironment() {
+    val root = temporary.newFolder("configured-msys")
+    check(root.resolve("usr/bin").mkdirs())
+    root.resolve("usr/bin/make.exe").writeText("")
+    val host = NativeBuildHost(true, mapOf("TGX_MSYS2_ROOT" to "missing", "Path" to "original"), root)
+    assertEquals(root.resolve("usr/bin/make.exe").nativePath(), host.commandLine(listOf("make"))[0])
+    assertEquals(root.resolve("usr/bin").nativePath() + java.io.File.pathSeparator + "original",
+      host.commandEnvironment()["Path"])
+  }
+
+  @Test
   fun windowsNdkToolsUseExeSuffix() {
     val prebuilt = temporary.newFolder("ndk")
     val bin = prebuilt.resolve("bin")

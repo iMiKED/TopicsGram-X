@@ -6,10 +6,11 @@ import java.util.Locale
 /** Host tools used by the configure/make dependencies, not by Android CMake. */
 class NativeBuildHost(
   val isWindows: Boolean = System.getProperty("os.name").startsWith("Windows", ignoreCase = true),
-  private val environment: Map<String, String> = System.getenv()
+  private val environment: Map<String, String> = System.getenv(),
+  private val msys2Root: File? = null
 ) {
   private fun msysBin(): File {
-    val root = environment["TGX_MSYS2_ROOT"]?.takeIf { it.isNotBlank() } ?: "C:/msys64"
+    val root = msys2Root?.path ?: environment["TGX_MSYS2_ROOT"]?.takeIf { it.isNotBlank() } ?: "C:/msys64"
     return File(root).resolve("usr/bin")
   }
 

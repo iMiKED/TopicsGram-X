@@ -2,11 +2,10 @@ package tgx.gradle.task
 
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.TaskAction
-import org.jetbrains.kotlin.konan.file.File
 import tgx.gradle.createEmptyDir
-import tgx.gradle.nativePath
 import tgx.gradle.requireDir
 import tgx.gradle.requireFile
+import java.io.File
 
 private const val TAG = "libvpx"
 
@@ -53,7 +52,7 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
     val ldFlags = mutableListOf(
       "-L${requireDir(
         sysroot.resolve("usr/lib")
-      ).nativePath()}"
+      ).toPosixPath()}"
     )
     val ndkAbi: String
     when (abi) {
@@ -75,7 +74,7 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
           "-mfpu=neon",
           "-mthumb",
           "-mtune=cortex-a8",
-          "-I${cpuFeatures.nativePath()}"
+          "-I${cpuFeatures.toPosixPath()}"
         ))
       }
       "x86_64" -> {
@@ -100,12 +99,12 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
         error("Unsupported abi: $abi")
       }
     }
-    val cc = requireFile(prebuilt.resolve(
-      "bin/${ndkAbi}${androidApiLevel}-clang"
-    ))
-    val cxx = requireFile(prebuilt.resolve(
-      "bin/${ndkAbi}${androidApiLevel}-clang++"
-    ))
+    val cc = "${requireFile(prebuilt.resolveNdkBinary(
+      "bin/clang"
+    )).toPosixPath()} --target=${ndkAbi}${androidApiLevel}"
+    val cxx = "${requireFile(prebuilt.resolveNdkBinary(
+      "bin/clang++"
+    )).toPosixPath()} --target=${ndkAbi}${androidApiLevel}"
     val cppFlags = cFlags.joinToString(" ")
     val env = mapOf(
       "CFLAGS" to cppFlags,
@@ -113,30 +112,39 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
       "CXXFLAGS" to "$cppFlags -std=c++17",
       "LDFLAGS" to ldFlags.joinToString(" "),
 
-      "PATH" to arrayOf(
-        "${requireDir(
+      PATH to arrayOf(
+        requireDir(
           prebuilt.resolve("bin")
-        ).nativePath()}",
+        ).absolutePath,
+        msys2Path(msys2Dir),
         System.getenv("PATH")?.takeIf { it.isNotEmpty() }
       ).filterNotNull().joinToString(File.pathSeparator),
 
-      "AR" to "${
-        buildHost.ndkTool(prebuilt, "llvm-ar").nativePath()
-      }",
+      "AR" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-ar")
+      ).toPosixPath(),
 
-      "CC" to "${cc.nativePath()}",
-      "AS" to "${cc.nativePath()}",
-      "LD" to "${cc.nativePath()}",
+      "CC" to cc,
+      "AS" to "$cc -c", // libvpx/build/make/configure.sh:1179
+      "LD" to cc,
 
-      "CXX" to "${cxx.nativePath()}",
-      "CPP" to "${cxx.nativePath()}",
+      "CXX" to cxx,
+      "CPP" to cxx,
 
       "ASFLAGS" to "-D__ANDROID__",
-      "YASM" to "${buildHost.ndkTool(prebuilt, "yasm").nativePath()}",
+      "YASM" to requireFile(
+        prebuilt.resolveNdkBinary("bin/yasm")
+      ).toPosixPath(),
 
-      "STRIP" to "${buildHost.ndkTool(prebuilt, "llvm-strip").nativePath()}",
-      "RANLIB" to "${buildHost.ndkTool(prebuilt, "llvm-ranlib").nativePath()}",
-      "NM" to "${buildHost.ndkTool(prebuilt, "llvm-nm").nativePath()}"
+      "STRIP" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-strip")
+      ).toPosixPath(),
+      "RANLIB" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-ranlib")
+      ).toPosixPath(),
+      "NM" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-nm")
+      ).toPosixPath()
     )
 
     // Output
@@ -181,9 +189,9 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
       logFile,
       mapOf(
         "configure" to arrayOf(
-          configure.nativePath(),
-          "--libc=${sysroot.nativePath()}",
-          "--prefix=${output.nativePath()}",
+          *resolveScript(configure, msys2Dir),
+          "--libc=${sysroot.toPosixPath()}",
+          "--prefix=${output.toPosixPath()}",
           "--target=${libvpxTarget}",
           *extraParams.toTypedArray(),
           "--as=auto",
@@ -227,7 +235,7 @@ abstract class BuildLibvpxTask : BuildNativeLibraryTask() {
       logFile,
       mapOf(
         "make" to arrayOf(
-          "make",
+          resolveBinary("make", msys2Dir),
           "-j${Runtime.getRuntime().availableProcessors()}",
           "install"
         )

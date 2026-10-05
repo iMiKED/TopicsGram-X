@@ -7,16 +7,19 @@ import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
-import tgx.gradle.NativeBuildHost
 import tgx.gradle.fatal
+import tgx.gradle.NativeBuildHost
 import tgx.gradle.normalizeNativeScript
-import java.io.File
 import java.io.FileOutputStream
+import java.io.File
 import javax.inject.Inject
 
 abstract class BuildNativeLibraryTask : DefaultTask() {
   @get:Internal
   abstract val sdkDir: DirectoryProperty
+
+  @get:Internal
+  abstract val msys2Dir: DirectoryProperty
 
   @get:Input
   abstract val ndkVersion: Property<String>
@@ -51,15 +54,13 @@ abstract class BuildNativeLibraryTask : DefaultTask() {
 
   @get:Internal
   protected val buildHost: NativeBuildHost
-    get() = NativeBuildHost(isWindows = hostTag.get().startsWith("windows"))
+    get() = NativeBuildHost(isWindows = isWindowsHost(), msys2Root = msys2Dir.orNull?.asFile)
 
   protected fun prepareInput(input: File): File {
-    if (!buildHost.isWindows) return input
+    if (!isWindowsHost()) return input
     val prepared = temporaryDir.resolve("source")
     fs.sync {
-      from(input) {
-        exclude(".git", "**/.git", "**/.git/**", ".github/**")
-      }
+      from(input) { exclude(".git", "**/.git", "**/.git/**", ".github/**") }
       into(prepared)
     }
     prepared.walkTopDown().filter { it.isFile }.forEach(::normalizeNativeScript)
@@ -73,19 +74,19 @@ abstract class BuildNativeLibraryTask : DefaultTask() {
     logFile: File,
     commands: Map<String, Array<String>>
   ) {
-    for (command in commands) {
+    for ((key, value) in commands) {
       FileOutputStream(logFile, true).use { log ->
-        log.write("\n[$tag ${command.key}]\n".toByteArray())
+        log.write("\n[$tag $key]\n".toByteArray())
         exec.exec {
           standardOutput = log
           errorOutput = log
           isIgnoreExitValue = true
           workingDir = buildDir
           environment(buildHost.commandEnvironment(env))
-          commandLine(buildHost.commandLine(command.value.toList()))
+          commandLine(*value)
         }.let { result ->
           if (result.exitValue != 0) {
-            fatal("$tag ${command.key} failed [${sdkFlavor.get()}, ${abi.get()}], see: ${logFile.absolutePath}")
+            fatal("$tag $key failed [${sdkFlavor.get()}, ${abi.get()}], see: ${logFile.absolutePath}")
           }
         }
       }

@@ -2,12 +2,11 @@ package tgx.gradle.task
 
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.*
-import org.jetbrains.kotlin.konan.file.File
 import tgx.gradle.createEmptyDir
-import tgx.gradle.nativePath
 import tgx.gradle.ndkVersionMajor
 import tgx.gradle.requireDir
 import tgx.gradle.requireFile
+import java.io.File
 import java.io.ByteArrayOutputStream
 
 private const val TAG = "FFmpeg"
@@ -24,17 +23,14 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
     val input = prepareInput(source)
     val libvpx = requireDir(libvpxDir.get().asFile)
 
-    if (buildHost.isWindows) {
-      // A generated source copy has no .git. Resolve the version against the real
-      // source checkout so version.sh cannot accidentally describe the parent app.
+    if (isWindowsHost()) {
+      // Resolve against the original submodule, not the parent of the generated copy.
       val versionOutput = ByteArrayOutputStream()
       exec.exec {
         workingDir = source
         environment(buildHost.commandEnvironment())
-        commandLine(buildHost.commandLine(listOf(
-          requireFile(input.resolve("ffbuild/version.sh")).nativePath(),
-          source.nativePath()
-        )))
+        commandLine(*resolveScript(requireFile(input.resolve("ffbuild/version.sh")), msys2Dir),
+          source.toPosixPath())
         standardOutput = versionOutput
       }
       val version = versionOutput.toString(Charsets.UTF_8).trim()
@@ -84,7 +80,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
       "-DCONFIG_LINUX_PERF=0",
       "-I${requireDir(
         libvpx.resolve("include")
-      ).nativePath()}"
+      ).toPosixPath()}"
     )
     if (ndkVersionMajor >= 27) {
       cFlags.addAll(arrayOf(
@@ -95,7 +91,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
     val ldFlags = mutableListOf(
       "-L${requireDir(
         libvpx.resolve("lib")
-      ).nativePath()}",
+      ).toPosixPath()}",
       "-lvpx",
       "-fPIC",
       "-flto=full"
@@ -136,10 +132,10 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
           "-mfpu=neon",
           "-marm",
           "-mtune=cortex-a8",
-          "-I${cpuFeatures.nativePath()}"
+          "-I${cpuFeatures.toPosixPath()}"
         ))
         ldFlags.addAll(listOf(
-          "-L${clangLibs.nativePath()}",
+          "-L${clangLibs.toPosixPath()}",
           "-Wl,--fix-cortex-a8"
         ))
         extraLibs.addAll(listOf(
@@ -161,7 +157,9 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
         ))
         extraParams.addAll(arrayOf(
           "--enable-x86asm",
-          "--x86asmexe=${buildHost.ndkTool(prebuilt, "yasm").nativePath()}"
+          "--x86asmexe=${requireFile(
+            prebuilt.resolveNdkBinary("bin/yasm")
+          ).toPosixPath()}"
         ))
       }
       "x86" -> {
@@ -172,7 +170,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
           "-mfpmath=sse",
           "-fPIC"
         ))
-        ldFlags += "-L${clangLibs.nativePath()}"
+        ldFlags += "-L${clangLibs.toPosixPath()}"
         extraLibs += "-lclang_rt.builtins-i686-android"
         extraParams.addAll(arrayOf(
           "--disable-asm",
@@ -183,12 +181,12 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
         error("Unsupported abi: $abi")
       }
     }
-    val cc = requireFile(prebuilt.resolve(
-      "bin/${ndkAbi}${androidApiLevel}-clang"
-    ))
-    val cxx = requireFile(prebuilt.resolve(
-      "bin/${ndkAbi}${androidApiLevel}-clang++"
-    ))
+    val cc = "${requireFile(prebuilt.resolveNdkBinary(
+      "bin/clang"
+    )).toPosixPath()} --target=${ndkAbi}${androidApiLevel}"
+    val cxx = "${requireFile(prebuilt.resolveNdkBinary(
+      "bin/clang++"
+    )).toPosixPath()} --target=${ndkAbi}${androidApiLevel}"
     val cppFlags = cFlags.joinToString(" ")
     val env = mapOf(
       "CFLAGS" to cppFlags,
@@ -196,30 +194,41 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
       "CXXFLAGS" to "$cppFlags -std=c++11",
       "LDFLAGS" to "-L${requireDir(
         sysroot.resolve("usr/lib")
-      ).nativePath()}",
+      ).toPosixPath()}",
 
-      "PATH" to arrayOf(
-        "${requireDir(
+      PATH to arrayOf(
+        requireDir(
           prebuilt.resolve("bin")
-        ).nativePath()}",
+        ).absolutePath,
+        msys2Path(msys2Dir),
         System.getenv("PATH")?.takeIf { it.isNotEmpty() }
       ).filterNotNull().joinToString(File.pathSeparator),
 
-      "AR" to "${buildHost.ndkTool(prebuilt, "llvm-ar").nativePath()}",
+      "AR" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-ar")
+      ).toPosixPath(),
 
-      "CC" to "${cc.nativePath()}",
-      "AS" to "${cc.nativePath()}",
-      "LD" to "${cc.nativePath()}",
+      "CC" to cc,
+      "AS" to cc,
+      "LD" to cc,
 
-      "CXX" to "${cxx.nativePath()}",
-      "CPP" to "${cxx.nativePath()}",
+      "CXX" to cxx,
+      "CPP" to cxx,
 
       "ASFLAGS" to "-D__ANDROID__",
-      "YASM" to "${buildHost.ndkTool(prebuilt, "yasm").nativePath()}",
+      "YASM" to requireFile(
+        prebuilt.resolveNdkBinary("bin/yasm")
+      ).toPosixPath(),
 
-      "STRIP" to "${buildHost.ndkTool(prebuilt, "llvm-strip").nativePath()}",
-      "RANLIB" to "${buildHost.ndkTool(prebuilt, "llvm-ranlib").nativePath()}",
-      "NM" to "${buildHost.ndkTool(prebuilt, "llvm-nm").nativePath()}",
+      "STRIP" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-strip")
+      ).toPosixPath(),
+      "RANLIB" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-ranlib")
+      ).toPosixPath(),
+      "NM" to requireFile(
+        prebuilt.resolveNdkBinary("bin/llvm-nm")
+      ).toPosixPath(),
     )
 
     val output = createEmptyDir(fs,
@@ -247,9 +256,13 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
 
     val commands = linkedMapOf(
       "configure" to arrayOf(
-        configure.nativePath(),
-        "--prefix=${output.nativePath()}",
-        "--sysroot=${sysroot.nativePath()}",
+        *resolveScript(configure, msys2Dir),
+        "--prefix=${
+          output.toPosixPath()
+        }",
+        "--sysroot=${
+          sysroot.toPosixPath()
+        }",
         *arrayOf(
           "nm",
           "ar",
@@ -320,11 +333,11 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
         *extraParams.toTypedArray()
       ),
       "make" to arrayOf(
-        "make",
+        resolveBinary("make", msys2Dir),
         "-j${Runtime.getRuntime().availableProcessors()}"
       ),
       "install" to arrayOf(
-        "make",
+        resolveBinary("make", msys2Dir),
         "-j${Runtime.getRuntime().availableProcessors()}",
         "install"
       )
