@@ -9,10 +9,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Versioned, platform-independent storage for the primitive fields of TdBundle drafts. */
+/** Versioned storage for TdBundle fields, including binary rich-message snapshots. */
 public final class ForumDraftCodec {
-  private static final int VERSION = 1;
-  private static final int MAX_BYTES = 16 * 1024 * 1024;
+  private static final int VERSION = 2;
+  private static final int MAX_BYTES = 32 * 1024 * 1024;
   private ForumDraftCodec () { }
 
   public static byte[] encode (Map<String, Object> fields) {
@@ -29,7 +29,9 @@ public final class ForumDraftCodec {
         else if (value instanceof Integer) { out.writeByte(2); out.writeInt((Integer) value); }
         else if (value instanceof Long) { out.writeByte(3); out.writeLong((Long) value); }
         else if (value instanceof Boolean) { out.writeByte(4); out.writeBoolean((Boolean) value); }
+        else if (value instanceof byte[]) { out.writeByte(5); out.writeInt(((byte[]) value).length); out.write((byte[]) value); }
         else throw new IllegalArgumentException("Unsupported draft field type");
+        if (bytes.size() > MAX_BYTES) throw new IllegalArgumentException("Draft too large");
       }
       return bytes.toByteArray();
     } catch (IOException impossible) {
@@ -40,7 +42,8 @@ public final class ForumDraftCodec {
   public static Map<String, Object> decode (byte[] bytes) throws IOException {
     if (bytes.length > MAX_BYTES) throw new IOException("Draft too large");
     DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
-    if (in.readInt() != VERSION) throw new IOException("Unknown draft version");
+    int version = in.readInt();
+    if (version != 1 && version != VERSION) throw new IOException("Unknown draft version");
     int count = in.readInt();
     if (count < 0 || count > bytes.length / 5) throw new IOException("Invalid field count");
     Map<String, Object> fields = new TreeMap<>();
@@ -53,6 +56,12 @@ public final class ForumDraftCodec {
         case 2: value = in.readInt(); break;
         case 3: value = in.readLong(); break;
         case 4: value = in.readBoolean(); break;
+        case 5:
+          if (version < 2) throw new IOException("Unknown draft field type");
+          int length = in.readInt();
+          if (length < 0 || length > in.available()) throw new IOException("Invalid binary draft field length");
+          byte[] binary = new byte[length]; in.readFully(binary); value = binary;
+          break;
         default: throw new IOException("Unknown draft field type");
       }
       if (fields.containsKey(key)) throw new IOException("Duplicate draft field");
