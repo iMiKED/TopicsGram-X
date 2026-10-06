@@ -1,4 +1,14 @@
-# [Telegram X](https://play.google.com/store/apps/details?id=org.thunderdog.challegram) — a slick experimental Telegram client based on [TDLib](https://core.telegram.org/tdlib).
+# TopicsGram X
+
+TopicsGram X is a Telegram X fork with forum topic support and its own application identity. The default `main` branch contains the complete fork and is the source for its builds; it is not a mirror of upstream Telegram X.
+
+- `upstream/forum-topics` contains the feature-only changes proposed in [Telegram X PR #1095](https://github.com/TGX-Android/Telegram-X/pull/1095).
+- New independent contribution branches start from the original `TGX-Android/Telegram-X:main`, not from this fork's product branch. Their tested changes can then be merged into this fork's `main`.
+- Fork-only branding and build adaptations stay out of upstream feature PRs. Debug, Release and legacy are build variants, not separate development branches.
+
+The Telegram X documentation below is retained for upstream context. Fork-specific Windows build notes are in [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
+
+## [Telegram X](https://play.google.com/store/apps/details?id=org.thunderdog.challegram) — a slick experimental Telegram client based on [TDLib](https://core.telegram.org/tdlib).
 
 ![Telegram X](/images/feature.png)
 
@@ -52,7 +62,7 @@ This is the complete source code and the build instructions for the official alt
 
 ### Building
 
-1. `$ git clone --recursive https://github.com/TGX-Android/Telegram-X tgx`
+1. To build TopicsGram X: `$ git clone --recursive --branch main https://github.com/iMiKED/TopicsGram-X tgx`. To work on an upstream contribution instead, start from the original Telegram X repository.
 2. In case you forgot the `--recursive` flag, `cd` into `tgx` directory and run: `$ git submodule update --init --recursive`
 3. Open project via **[Android Studio](https://developer.android.com/studio/)** or build manually from the command line: `./gradlew assembleLatestUniversalDebug`
 4. If build fails, follow the instructions provided in the error message.
