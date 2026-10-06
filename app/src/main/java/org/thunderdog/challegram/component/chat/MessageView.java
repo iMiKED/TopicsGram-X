@@ -1473,6 +1473,12 @@ public class MessageView extends SparseDrawableView implements Destroyable, Draw
     animator.animateTo(1f);
   }
 
+  public void performArticleLongPress (float x, float y) {
+    touchX = x;
+    touchY = y;
+    onLongPress();
+  }
+
   private void onLongPress () {
     if ((flags & FLAG_CAUGHT_CLICK) != 0) {
       if (performLongPress()) {
