@@ -56,7 +56,7 @@ At product `main` revision `fd94dc5e`, after merging upstream `51a2ba25`:
 - Release identity, Firebase resources, existing v2/v3 certificate, source revision and all 11 packaged native outputs were verified. ZIP/ELF 16 KiB alignment passed; APK and matching R8 mapping were archived together.
 - All 56 recursive submodules remain at their exact pins without tracked changes after building. LF/CRLF policy is preserved.
 
-This run did not build new Debug/legacy APKs, install on devices or repeat the device/server matrix. The first Release attempt stopped at a translation connection timeout after native compilation; retry after restoring VPN access completed successfully. No translation check was bypassed and no old native inputs were substituted.
+This run did not build new Debug/legacy APKs or repeat the device/server matrix. A subsequent requested installation of the verified signed Release on API 37 passed hash/preservation checks and a cold-start smoke; see the acceptance record for its limits. The first Release attempt stopped at a translation connection timeout after native compilation; retry after restoring VPN access completed successfully. No translation check was bypassed and no old native inputs were substituted.
 
 ### Verification on 2026-10-05
 
