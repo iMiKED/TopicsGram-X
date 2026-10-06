@@ -2,7 +2,7 @@
 
 Upstream now supports Windows hosts for libvpx, FFmpeg and Opus preparation. This fork uses that implementation and the standard `msys2.dir` setting, plus the source-copy/version/log safeguards described below. Use the Windows JDK and Android SDK/NDK, plus MSYS2 for POSIX configure/make scripts.
 
-The integration baseline is upstream `805209e6` (2026-10-05), including its FFmpeg update, multidex startup fix and OpenGL intro fallback. The earlier results below are historical, not validation of that new baseline. See the dated acceptance records for current checks.
+The integration baseline is upstream `51a2ba25` (2026-10-06), version 1816 with NDK r30 and updated tgcalls/WebRTC. It also retains the October 5 FFmpeg, multidex startup and OpenGL intro fixes. Earlier dated results below are historical, not validation of the newest native inputs. The fork's product/build branch is now `main`.
 
 Build verification on 2026-09-27/28 used app revision `9291ce110ccc852c0b7043b92f4ac19c4e651242` plus this branch's build changes: `assembleLatestArm64Debug`, APK metadata/signature checks, and repeat incremental builds with unchanged APK SHA-256. All 17 build-infrastructure tests passed, including the real MSYS2 argument test. These results cover ARM64 debug builds only, not other ABIs/flavors or release signing. Device test data and credentials are not part of this repository.
 
@@ -44,6 +44,19 @@ Generated-file comparison uses `Files.mismatch` instead of memory-mapped buffers
 The app's generated-source and native-library directory arguments use forward slashes when passed to CMake, so Windows backslashes are not interpreted as CMake escape sequences.
 
 ## Checks
+
+### Verification on 2026-10-06
+
+At product `main` revision `fd94dc5e`, after merging upstream `51a2ba25`:
+
+- JDK 25, Gradle 9.8.0, Windows NDK `30.0.16248370`, CMake 3.22.1 and MSYS2 were used without WSL. Older installed NDKs were retained.
+- All 29 build-infrastructure tests and 9 synthetic TDLib resolver fixtures passed. The latter are resolver tests, not a replacement for the real native build.
+- `latestArm64Release` rebuilt libvpx, FFmpeg and JNI libraries with r30 and the new pins. The TDLib module supplies r30 prebuilts; its Java API/source version is unchanged.
+- 517 modern JVM tests, signed Release packaging, R8/resource shrinking and production-source Release lint passed. Lint found no new issues; 17 existing warnings remain baseline-filtered. Test-source UAST is excluded only by the local validation harness.
+- Release identity, Firebase resources, existing v2/v3 certificate, source revision and all 11 packaged native outputs were verified. ZIP/ELF 16 KiB alignment passed; APK and matching R8 mapping were archived together.
+- All 56 recursive submodules remain at their exact pins without tracked changes after building. LF/CRLF policy is preserved.
+
+This run did not build new Debug/legacy APKs, install on devices or repeat the device/server matrix. The first Release attempt stopped at a translation connection timeout after native compilation; retry after restoring VPN access completed successfully. No translation check was bypassed and no old native inputs were substituted.
 
 ### Verification on 2026-10-05
 
