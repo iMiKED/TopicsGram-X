@@ -8378,12 +8378,48 @@ public class MessagesController extends ViewController<MessagesController.Argume
     ReplyInfo reply = getCurrentReplyId();
     TdApi.DraftMessage draft = new TdApi.DraftMessage(reply != null ? reply.toInputMessageReply() : null, (int) tdlib.currentTime(TimeUnit.SECONDS), new TdApi.DraftMessageContentInputRichMessage(document.toInput()), 0, getInputSuggestedPostInfo(reply));
     if (messageThread != null) messageThread.setDraft(draft);
-    tdlib.send(new TdApi.SetChatDraftMessage(getChatId(), getMessageTopicId(), draft), tdlib.typedOkHandler());
+    if (isForumTabsAll()) {
+      tdlib.settings().putLocalForumDraft(chatId, 0, draft);
+      return;
+    }
+    final ForumTopicContext forum = composerForumContext();
+    final byte[] localDraft;
+    if (forum != null) {
+      forum.setLocalDraft(draft);
+      localDraft = tdlib.settings().putLocalForumDraft(chatId, forum.topicId, draft);
+    } else localDraft = null;
+    tdlib.send(new TdApi.SetChatDraftMessage(chatId, getMessageTopicId(reply), draft), (ok, error) -> {
+      if (ok != null && forum != null) {
+        tdlib.settings().acknowledgeLocalForumDraft(chatId, forum.topicId, localDraft);
+        tdlib.ui().post(() -> { if (composerForumContext() == forum) forum.acknowledgeDraft(draft); });
+      }
+    });
+  }
+
+  public void onArticleSent (org.thunderdog.challegram.data.article.ArticleDocument document, long chatId, TdApi.MessageTopic topic) {
+    if (accountDataCleared) return;
+    int localTopicId = topic instanceof TdApi.MessageTopicForum ? ((TdApi.MessageTopicForum) topic).forumTopicId :
+      topic == null ? 0 : -1;
+    if (localTopicId >= 0) tdlib.settings().clearSentForumArticle(chatId, localTopicId, document);
+    if (getChatId() == chatId && matchesArticleTopic(topic)) {
+      ForumTopicContext forum = composerForumContext();
+      if (forum != null && org.thunderdog.challegram.data.ForumArticleDrafts.matches(forum.draft(), document)) {
+        forum.setLocalDraft(null);
+        // Refresh after TDLib's clearDraft without a second write that could erase a newer cloud draft.
+        tdlib.send(new TdApi.GetForumTopic(chatId, forum.topicId), (updated, error) -> tdlib.ui().post(() -> {
+          if (updated != null && composerForumContext() == forum && forum.hasLocalDraft() && forum.draft() == null) {
+            forum.update(updated, null);
+            forum.acknowledgeDraft(null);
+          }
+        }));
+      }
+    }
   }
 
   public boolean sendArticle (org.thunderdog.challegram.data.article.ArticleDocument document, long chatId, TdApi.MessageTopic topic, TdApi.MessageSendOptions options, RunnableData<TdApi.Message> after) {
     if (getChatId() != chatId || !matchesArticleTopic(topic) || !canCreateArticles()) return false;
-    TdApi.InputMessageRichMessage input = new TdApi.InputMessageRichMessage(document.toInput(), true);
+    // All has a separate local draft; clearing the outgoing topic's cloud draft would erase General's composer.
+    TdApi.InputMessageRichMessage input = new TdApi.InputMessageRichMessage(document.toInput(), !isForumTabsAll());
     final CharSequence[] mediaRestriction = {null};
     org.thunderdog.challegram.data.article.ArticleCodec.visit(input.message, (value, depth) -> {
       if (mediaRestriction[0] != null) return;
@@ -8393,7 +8429,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     if (showRestriction(null, mediaRestriction[0])) return false;
     if (showRestriction(null, tdlib.getRestrictionText(chat, input)) || showSlowModeRestriction(null, null)) return false;
     ReplyInfo reply = getCurrentReplyId();
-    tdlib.sendMessage(chatId, topic, reply != null ? reply.toInputMessageReply() : null,
+    tdlib.sendMessage(chatId, getMessageTopicId(reply), reply != null ? reply.toInputMessageReply() : null,
       Td.newSendOptions(options, getInputSuggestedPostInfo(reply), obtainSilentMode()), input, message -> {
         after.runWithData(message);
         if (message != null && reply != null) runOnUiThreadOptional(() -> {

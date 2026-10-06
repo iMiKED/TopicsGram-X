@@ -42,8 +42,29 @@ public class ForumDraftCodecTest {
   }
 
   @Test(expected = IOException.class) public void truncatedDraftIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0}); }
-  @Test(expected = IOException.class) public void unknownVersionIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0, 2, 0, 0, 0, 0}); }
+  @Test(expected = IOException.class) public void unknownVersionIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0, 3, 0, 0, 0, 0}); }
   @Test(expected = IOException.class) public void negativeCountIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0, 1, -1, -1, -1, -1}); }
   @Test(expected = IOException.class) public void trailingDataIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0, 1, 0, 0, 0, 0, 1}); }
   @Test(expected = IOException.class) public void invalidLengthIsRejected () throws Exception { ForumDraftCodec.decode(new byte[] {0, 0, 0, 1, 0, 0, 0, 1, -1, -1, -1, -1, 0}); }
+
+  @Test public void stillReadsVersionOneDrafts () throws Exception {
+    Map<String, Object> fields = new HashMap<>(); fields.put("text", "existing draft"); fields.put("reply", 19L);
+    byte[] legacy = ForumDraftCodec.encode(fields); legacy[3] = 1;
+    assertEquals(fields, ForumDraftCodec.decode(legacy));
+  }
+
+  @Test public void roundTripsBinaryFieldsWithoutAliasing () throws Exception {
+    Map<String, Object> fields = new HashMap<>(); fields.put("waveform", new byte[] {1, 2, -1, 0});
+    byte[] encoded = ForumDraftCodec.encode(fields);
+    ((byte[]) fields.get("waveform"))[0] = 9;
+    assertArrayEquals(new byte[] {1, 2, -1, 0}, (byte[]) ForumDraftCodec.decode(encoded).get("waveform"));
+    encoded[encoded.length - 1] = 5;
+    assertArrayEquals(new byte[] {1, 2, -1, 5}, (byte[]) ForumDraftCodec.decode(encoded).get("waveform"));
+  }
+
+  @Test(expected = IOException.class) public void truncatedBinaryFieldIsRejected () throws Exception {
+    Map<String, Object> fields = new HashMap<>(); fields.put("body", new byte[] {1, 2, 3});
+    byte[] encoded = ForumDraftCodec.encode(fields);
+    ForumDraftCodec.decode(java.util.Arrays.copyOf(encoded, encoded.length - 1));
+  }
 }

@@ -699,6 +699,8 @@ public final class ArticleEditorController extends ViewController<ArticleEditorC
         handler.post(() -> {
           pendingMessageId = 0;
           if (success && recoveryStore != null) try { recoveryStore.clearIfUnchanged(snapshot); } catch (IOException ignored) { }
+          Args args = getArgumentsStrict();
+          if (success && args.userId == tdlib.myUserId()) args.owner.onArticleSent(snapshot, args.chatId, args.topic);
           if (error != null) UI.showError(error);
           if (isDestroyed()) { sent = success; if (!success) saveDraft(); return; }
           finishSending(success);

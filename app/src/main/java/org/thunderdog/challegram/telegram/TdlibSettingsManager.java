@@ -29,6 +29,8 @@ import org.thunderdog.challegram.U;
 import org.thunderdog.challegram.config.Config;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.ForumDraftCodec;
+import org.thunderdog.challegram.data.ForumArticleDrafts;
+import org.thunderdog.challegram.data.article.ArticleDocument;
 import org.thunderdog.challegram.data.ForumTabsState;
 import org.thunderdog.challegram.theme.ChatStyle;
 import org.thunderdog.challegram.theme.TGBackground;
@@ -172,13 +174,19 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     if (bytes == null) return null;
     try {
       Bundle bundle = new Bundle();
-      for (Map.Entry<String, Object> field : ForumDraftCodec.decode(bytes).entrySet()) {
+      Map<String, Object> fields = ForumDraftCodec.decode(bytes);
+      for (Map.Entry<String, Object> field : fields.entrySet()) {
         Object value = field.getValue();
         if (value == null || value instanceof String) bundle.putString(field.getKey(), (String) value);
         else if (value instanceof Integer) bundle.putInt(field.getKey(), (Integer) value);
         else if (value instanceof Long) bundle.putLong(field.getKey(), (Long) value);
         else if (value instanceof Boolean) bundle.putBoolean(field.getKey(), (Boolean) value);
+        else if (value instanceof byte[]) bundle.putByteArray(field.getKey(), (byte[]) value);
       }
+      TdApi.DraftMessageContent article = ForumArticleDrafts.restore(fields);
+      if (article != null) return new LocalForumDraft(new TdApi.DraftMessage(
+        Td.restoreInputMessageReplyTo(bundle, "draft_replyTo"), bundle.getInt("draft_date"), article,
+        bundle.getLong("draft_effect"), Td.restoreInputSuggestedPostInfo(bundle, "draft_suggestedPostInfo")));
       return new LocalForumDraft(Td.restoreDraftMessage(bundle, "draft"));
     } catch (IOException | RuntimeException ignored) {
       // Keep unreadable data for recovery; never log draft contents.
@@ -191,6 +199,7 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     Td.put(bundle, "draft", draft);
     Map<String, Object> fields = new TreeMap<>();
     for (String key : bundle.keySet()) fields.put(key, bundle.get(key));
+    if (draft != null) ForumArticleDrafts.put(fields, draft.content);
     byte[] bytes = ForumDraftCodec.encode(fields);
     Settings.instance().pmc().putByteArray(forumDraftKey(chatId, topicId), bytes);
     return bytes;
@@ -202,6 +211,14 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     // any data after logout). Compare the exact snapshot sent to TDLib.
     if (Arrays.equals(sentDraft, Settings.instance().pmc().getByteArray(key))) {
       Settings.instance().pmc().remove(key);
+    }
+  }
+
+  /** A completed send must never remove a newer local article or a text draft. */
+  public synchronized void clearSentForumArticle (long chatId, int topicId, ArticleDocument sent) {
+    LocalForumDraft current = getLocalForumDraft(chatId, topicId);
+    if (current != null && ForumArticleDrafts.matches(current.draft, sent)) {
+      Settings.instance().pmc().remove(forumDraftKey(chatId, topicId));
     }
   }
 
