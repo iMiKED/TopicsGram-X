@@ -47,13 +47,13 @@ val validateGitSetupTask = tasks.register<ValidateGitSetupTask>("validateGitSetu
     layout.projectDirectory.dir(
       "../tdlib/src/main/libs"
     ).asFileTree.matching {
-      include("*/*/*.so")
+      include("*/*/*/*.so")
     },
     layout.projectDirectory.dir(
       "../tdlib/openssl"
     ).asFileTree.matching {
-      include("*/*/lib/libcryptox.so")
-      include("*/*/lib/libsslx.so")
+      include("*/*/*/lib/libcryptox.so")
+      include("*/*/*/lib/libsslx.so")
     }
   )
 }
@@ -856,7 +856,7 @@ android {
 
         var openSslVersionFull = ""
         var openSslReleaseDate = ""
-        val openSslVersionFile = requireFile(project.isolated.rootProject.projectDirectory.file("tdlib/openssl/${ndkVersion}/${abiVariant.filters.first()}/include/openssl/opensslv.h").asFile)
+        val openSslVersionFile = requireFile(project.isolated.rootProject.projectDirectory.file("tdlib/openssl/${ndkVersion}/android-${sdkVariant.minSdk}/${abiVariant.filters.first()}/include/openssl/opensslv.h").asFile)
         openSslVersionFile.bufferedReader().use { reader ->
           val regex = Regex("^# define (OPENSSL_FULL_VERSION_STR|OPENSSL_RELEASE_DATE)\\s*\"([^\"]+)\"$")
           while (true) {

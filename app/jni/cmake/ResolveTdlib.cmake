@@ -1,7 +1,10 @@
-# TDLib bundles can contain both the original ABI directories and a nested
-# libs/ directory. Select only a prebuilt matching the Java bindings; loading
-# another revision aborts in TDLib's JNI_OnLoad before the app can start.
-function(resolve_tdlib_library tdlib_dir ndk_revision abi output_variable)
+# Select only a prebuilt for the requested Android platform and Java bindings.
+# A different platform can require unavailable linker features; another TDLib
+# revision aborts in JNI_OnLoad before the app can start.
+function(resolve_tdlib_library tdlib_dir ndk_revision platform abi output_variable)
+  if(NOT platform MATCHES "^android-[0-9]+$")
+    message(FATAL_ERROR "Invalid Android platform: ${platform}")
+  endif()
   set(version_file "${tdlib_dir}/version.txt")
   set(java_file "${tdlib_dir}/src/main/java/org/drinkless/tdlib/TdApi.java")
   if(NOT EXISTS "${version_file}" OR NOT EXISTS "${java_file}")
@@ -22,8 +25,8 @@ function(resolve_tdlib_library tdlib_dir ndk_revision abi output_variable)
   endif()
 
   set(candidates
-    "${tdlib_dir}/src/main/libs/${ndk_revision}/${abi}/libtdjni.so"
-    "${tdlib_dir}/src/main/libs/${ndk_revision}/libs/${abi}/libtdjni.so"
+    "${tdlib_dir}/src/main/libs/${ndk_revision}/${platform}/${abi}/libtdjni.so"
+    "${tdlib_dir}/src/main/libs/${ndk_revision}/${platform}/libs/${abi}/libtdjni.so"
   )
   if(NOT CMAKE_SCRIPT_MODE_FILE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${version_file}" "${java_file}")
@@ -45,5 +48,5 @@ function(resolve_tdlib_library tdlib_dir ndk_revision abi output_variable)
     endif()
   endforeach()
   message(FATAL_ERROR
-    "No compatible libtdjni.so for TDLib ${expected_commit}, NDK ${ndk_revision}, ABI ${abi}. Checked: ${candidates}")
+    "No compatible libtdjni.so for TDLib ${expected_commit}, NDK ${ndk_revision}, platform ${platform}, ABI ${abi}. Checked: ${candidates}")
 endfunction()
