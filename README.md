@@ -1,12 +1,16 @@
 # TopicsGram X
 
-TopicsGram X is a Telegram X fork with forum topic support and its own application identity. The default `main` branch contains the complete fork and is the source for its builds; it is not a mirror of upstream Telegram X.
+TopicsGram X is a Telegram X fork with forum topics, native article messages and an inline article editor, and its own application identity. The default `main` branch contains the complete fork and is the source for its builds; it is not a mirror of upstream Telegram X.
 
 - `upstream/forum-topics` contains the feature-only changes proposed in [Telegram X PR #1095](https://github.com/TGX-Android/Telegram-X/pull/1095).
+- [`upstream/articles`](https://github.com/iMiKED/TopicsGram-X/tree/upstream/articles) contains the independent article contribution, its [implementation overview and validation boundaries](https://github.com/iMiKED/TopicsGram-X/blob/upstream/articles/docs/ARTICLES.md). It does not include the forum implementation or this fork's branding.
 - New independent contribution branches start from the original `TGX-Android/Telegram-X:main`, not from this fork's product branch. Their tested changes can then be merged into this fork's `main`.
 - Fork-only branding and build adaptations stay out of upstream feature PRs. Debug, Release and legacy are build variants, not separate development branches.
 
 The Telegram X documentation below is retained for upstream context. Fork-specific Windows build notes are in [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
+
+The [2026-10-07 integration record](docs/UPSTREAM_SYNC_20261007.md) describes the
+current upstream/native update and the exact scope of the latest build checks.
 
 ## [Telegram X](https://play.google.com/store/apps/details?id=org.thunderdog.challegram) — a slick experimental Telegram client based on [TDLib](https://core.telegram.org/tdlib).
 
