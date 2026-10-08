@@ -41,8 +41,6 @@ annotations-jsr305 = "3.0.2"
 annotations-kotlin = "2.1.20"
 junit = "4.13.2"
 
-junit = "4.13.2"
-
 androidx-baselineprofile = "1.5.0"
 androidx-profileinstaller = "1.4.1"
 androidx-benchmark = "1.5.0"
