@@ -379,6 +379,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private CameraAccessImageView mediaButton;
   private InvisibleImageView cameraButton, scheduleButton;
   private InvisibleImageView commandButton;
+  private org.thunderdog.challegram.miniapps.MiniAppMenuButton miniAppMenuButton;
   private @Nullable SilentButton silentButton;
 
   private HapticMenuHelper sendAsMenu;
@@ -1135,6 +1136,18 @@ public class MessagesController extends ViewController<MessagesController.Argume
     emojiButton.setOnClickListener(this);
     emojiButton.setLayoutParams(params);
 
+    miniAppMenuButton = new org.thunderdog.challegram.miniapps.MiniAppMenuButton(context, this::updateMiniAppMenuPadding);
+    miniAppMenuButton.setId(R.id.btn_miniApp);
+    RelativeLayout.LayoutParams menuParams = new RelativeLayout.LayoutParams(Screen.dp(40), Screen.dp(49));
+    menuParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+    menuParams.addRule(Lang.rtl() ? RelativeLayout.ALIGN_PARENT_RIGHT : RelativeLayout.ALIGN_PARENT_LEFT);
+    menuParams.leftMargin = menuParams.rightMargin = Screen.dp(10);
+    miniAppMenuButton.setLayoutParams(menuParams);
+    miniAppMenuButton.setOnClickListener(v -> {
+      if (botHelper != null && botHelper.getMenuButton() != null) tdlib.miniApps().openBotMenu(this, botHelper.getMenuButton());
+    });
+    addThemeInvalidateListener(miniAppMenuButton);
+
     params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Screen.dp(49f));
     params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
     if (Lang.rtl()) {
@@ -1488,6 +1501,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
     if (previewMode == PREVIEW_MODE_NONE) {
       contentView.addView(emojiButton);
+      contentView.addView(miniAppMenuButton);
       contentView.addView(attachButtons);
       articleExpandButton = new ImageView(context);
       articleExpandButton.setImageResource(R.drawable.article_iv_fullscreen_24);
@@ -3446,9 +3460,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
       updateCommandButton(R.drawable.deproko_baseline_bots_command_26);
       updateCommandButton(false);
       botHelper = new BotHelper(this, chat);
+      // Cached bot info can be delivered synchronously by the constructor.
+      updateCommandButton(botHelper.hasCommands());
     } else {
       updateCommandButton(0);
       botHelper = null;
+      updateMiniAppMenuButton(false);
     }
 
     liveLocation = new LiveLocationHelper(context, tdlib, chat.id, getMessageTopicId(), liveLocationView, false, this);
@@ -3916,6 +3933,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       sendButton.setVisibility(View.GONE);
       messageSenderButton.setVisibility(View.GONE);
     }
+    updateMiniAppMenuButton(false);
     updateBottomBarStyle();
     updateMessagesViewInset();
   }
@@ -8111,16 +8129,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public void updateCommandButton (boolean isVisible) {
-    if (botHelper != null && botHelper.getMenuButton() != null) {
-      isVisible = true;
-      if (lastCmdResource == R.drawable.deproko_baseline_bots_command_26 || lastCmdResource == R.drawable.baseline_launch_24) {
-        updateCommandButton(R.drawable.deproko_baseline_bots_command_26);
-      }
-      commandButton.setContentDescription(botHelper.getMenuButton().text);
-    } else if (lastCmdResource == R.drawable.baseline_launch_24) {
-      updateCommandButton(R.drawable.deproko_baseline_bots_command_26);
-      commandButton.setContentDescription(null);
-    }
+    updateMiniAppMenuButton(false);
+    if (botHelper != null && botHelper.getMenuButton() != null && lastCmdResource == R.drawable.deproko_baseline_bots_command_26) isVisible = false;
     boolean ok = setCameraVisible(!isVisible || !ChatId.isUserChat(getChatId()));
     if (commandButton.setVisible(isVisible) || ok) {
       attachButtons.updatePivot();
@@ -8128,7 +8138,10 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void updateCommandButton (int resource) {
-    if (resource == R.drawable.deproko_baseline_bots_command_26 && botHelper != null && botHelper.getMenuButton() != null) resource = R.drawable.baseline_launch_24;
+    if (resource == R.drawable.deproko_baseline_bots_command_26 && botHelper != null && botHelper.getMenuButton() != null) {
+      lastCmdResource = resource;
+      resource = 0;
+    }
     if (resource == 0) {
       if (commandButton.setVisible(false)) {
         attachButtons.updatePivot();
@@ -8145,11 +8158,6 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void onCommandClick () {
-    if (botHelper != null && botHelper.getMenuButton() != null) {
-      TdApi.BotMenuButton menu = botHelper.getMenuButton();
-      tdlib.miniApps().openBotMenu(this, menu);
-      return;
-    }
     inputView.setInput("/", true, true);
     Keyboard.show(inputView);
   }
@@ -8164,6 +8172,23 @@ public class MessagesController extends ViewController<MessagesController.Argume
     hideSoftwareKeyboard();
     closeCommandsKeyboard(false);
     closeEmojiKeyboard(true);
+  }
+
+  private void updateMiniAppMenuButton (boolean animated) {
+    if (miniAppMenuButton == null) return;
+    TdApi.BotMenuButton menu = botHelper != null ? botHelper.getMenuButton() : null;
+    miniAppMenuButton.setVisibility(menu != null && !inPreviewMode && !areScheduled && emojiButton.getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
+    miniAppMenuButton.setMenu(menu != null ? menu.text : "", (inputView == null || inputView.length() == 0) && !getKeyboardState() && !emojiShown && !commandsShown, animated);
+    updateMiniAppMenuPadding();
+  }
+
+  private void updateMiniAppMenuPadding () {
+    if (miniAppMenuButton == null || emojiButton == null || inputView == null) return;
+    int extra = miniAppMenuButton.getVisibility() == View.VISIBLE ? miniAppMenuButton.buttonWidth() + Screen.dp(10) : 0;
+    emojiButton.setTranslationX(Lang.rtl() ? -extra : extra);
+    inputView.setPadding(Screen.dp(Lang.rtl() ? 55 : 60) + (Lang.rtl() ? 0 : extra), inputView.getPaddingTop(),
+      Screen.dp(Lang.rtl() ? 60 : 55) + (Lang.rtl() ? extra : 0), inputView.getPaddingBottom());
+    inputView.checkPlaceholderWidth();
   }
 
   public void hideKeyboard (boolean personal) {
@@ -8308,6 +8333,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
     sendButton.setTranslationY(y);
     emojiButton.setTranslationY(y);
+    if (miniAppMenuButton != null) miniAppMenuButton.setTranslationY(y);
     attachButtons.setTranslationY(y);
     messageSenderButton.setTranslationY(y);
     updateArticleExpandButton();
@@ -9667,6 +9693,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         }
       }
       boolean result = super.onKeyboardStateChanged(visible);
+      updateMiniAppMenuButton(true);
       if (emojiShown && emojiKeyboardFrameLayout != null) {
         emojiKeyboardFrameLayout.onKeyboardStateChanged(visible);
       }
@@ -9939,6 +9966,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public void onInputTextChange (CharSequence charSequence, boolean byUserAction) {
+    updateMiniAppMenuButton(true);
     if (sendMenu != null) {
       sendMenu.hideMenu();
     }
