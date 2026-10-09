@@ -960,6 +960,7 @@ afterEvaluate {
 }
 
 dependencies {
+  sinceLollipopImplementation(libs.androidx.webkit)
   testImplementation(libs.junit)
   sinceNougatImplementation(libs.androidx.profileinstaller)
   flavorImplementation(

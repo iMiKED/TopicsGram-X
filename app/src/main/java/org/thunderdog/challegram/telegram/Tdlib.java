@@ -445,6 +445,12 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   private final HashMap<Long, Integer> chatOnlineMemberCount = new HashMap<>();
   private final TdlibCache cache;
   private final TdlibEmojiManager emoji;
+  private TdlibMiniAppManager miniApps;
+
+  public synchronized TdlibMiniAppManager miniApps () {
+    if (miniApps == null) miniApps = new TdlibMiniAppManager(this);
+    return miniApps;
+  }
   private final TdlibEmojiReactionsManager reactions;
   private final TdlibForumTopicManager topics;
   private final TdlibOutlineManager outline;
@@ -8839,7 +8845,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   @TdlibThread
   private void updateWebAppMessageSent (TdApi.UpdateWebAppMessageSent update) {
-    // TODO
+    miniApps().onWebAppMessageSent(update.webAppLaunchId);
   }
 
   // Updates: NOTIFICATIONS
