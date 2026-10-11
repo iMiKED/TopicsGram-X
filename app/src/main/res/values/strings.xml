@@ -6184,4 +6184,6 @@
   <string name="ArticleInsertDate">Insert date</string>
   <string name="ArticleDateTitle">Add date</string>
   <string name="ArticleInlineCopy">Copy</string>
+  <string name="MiniAppRestoreStorage">Restore app data from a signed-out account</string>
+  <string name="MiniAppStorageAccount">Saved account %1$s</string>
 </resources>
