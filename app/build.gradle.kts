@@ -677,7 +677,7 @@ android {
 
   androidComponents {
     val aapt2File = sdkComponents.sdkDirectory.map {
-      it.file("build-tools/${config.build.buildToolsVersion}/aapt2${if (isWindowsHost()) ".exe" else ""}").asFile.toPosixPath()
+      it.file("build-tools/${config.build.buildToolsVersion}/aapt2${if (isWindowsHost()) ".exe" else ""}").asFile.absolutePath
     }
 
     beforeVariants { variant ->
