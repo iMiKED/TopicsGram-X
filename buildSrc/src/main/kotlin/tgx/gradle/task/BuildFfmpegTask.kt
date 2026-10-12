@@ -1,11 +1,9 @@
 package tgx.gradle.task
 
+import Sdk
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.*
-import tgx.gradle.createEmptyDir
-import tgx.gradle.ndkVersionMajor
-import tgx.gradle.requireDir
-import tgx.gradle.requireFile
+import tgx.gradle.*
 import java.io.File
 import java.io.ByteArrayOutputStream
 
@@ -53,13 +51,9 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
     val sysroot = requireDir(prebuilt.resolve(
       "sysroot"
     ))
-    val androidApiLevel = when (flavor) {
-      "legacy" -> 16
-      "lollipop" -> 21
-      "marshmallow" -> 23
-      "latest" -> 24
-      else -> error("Unknown flavor: $flavor")
-    }
+    val androidApiLevel = (Sdk.VARIANTS.values.firstOrNull() {
+      it.flavor == flavor
+    } ?: fatal("Unknown flavor: $flavor")).minSdk
 
     val extraParams = mutableListOf<String>()
     val cFlags = mutableListOf(
@@ -105,7 +99,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
         30 ->
           prebuilt.resolve("lib/clang/21/lib/linux")
         else ->
-          error("Unsupported NDK version: $ndkVersion")
+          fatal("Unsupported NDK version: $ndkVersion")
       }
     )
     val extraLibs = mutableListOf<String>()
@@ -178,7 +172,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
         ))
       }
       else -> {
-        error("Unsupported abi: $abi")
+        fatal("Unsupported abi: $abi")
       }
     }
     val cc = "${requireFile(prebuilt.resolveNdkBinary(
@@ -251,7 +245,7 @@ abstract class BuildFfmpegTask : BuildNativeLibraryTask() {
       "x86_64", "x86" ->
         abi
       else ->
-        error("Unreachable")
+        fatal("Unreachable")
     }
 
     val commands = linkedMapOf(
