@@ -19,6 +19,10 @@ public final class MiniAppController extends ViewController<Void> {
     super(context, tdlib);
   }
 
+  public MiniAppController (Context context, Tdlib tdlib, MiniAppLaunchRequest request, Runnable onOpened, MiniAppAgeVerification verification) {
+    this(context, tdlib, request, onOpened);
+  }
+
   @Override
   public int getId () { return R.id.controller_miniApp; }
 
@@ -27,6 +31,7 @@ public final class MiniAppController extends ViewController<Void> {
 
   public long launchId () { return 0; }
   public long guardQueryId () { return 0; }
+  public boolean isAgeVerification (MiniAppAgeVerification verification) { return false; }
   public boolean isMinimized () { return false; }
   public boolean isShowing () { return false; }
   public boolean isShowingFullscreen () { return false; }
@@ -34,6 +39,7 @@ public final class MiniAppController extends ViewController<Void> {
   public void minimize () { }
   public boolean canRestore (MiniAppLaunchRequest request) { return false; }
   public String botName () { return ""; }
+  public CharSequence botTitle (int badgeDp) { return ""; }
   public android.graphics.Bitmap preview () { return null; }
   public int previewColor () { return 0; }
   public boolean needsCloseConfirmation () { return false; }

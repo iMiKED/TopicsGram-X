@@ -323,6 +323,8 @@ public class Lang {
       TdApi.LanguagePackStringValueOrdinary string = getStringValue(key, languagePackInfo);
       if (string != null)
         return string.value;
+      String bundled = org.thunderdog.challegram.miniapps.MiniAppTranslations.get(languagePackInfo, key, resId);
+      if (bundled != null) return bundled;
     }
     try {
       return getAndroidString(resId);
@@ -441,6 +443,8 @@ public class Lang {
           warnResource(true, pluralCode(), resId);
         }
       }
+      String bundled = org.thunderdog.challegram.miniapps.MiniAppTranslations.get(languagePackInfo, key, resId);
+      if (bundled != null) return formatString(applyFlags(bundled, flags), hasSpanned, creator, formatArgs);
     }
     try {
       if (creator != null || flags != 0 || hasSpanned) {
