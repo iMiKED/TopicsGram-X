@@ -18,12 +18,13 @@ public final class MiniAppTranslations {
 
   public static synchronized String get (TdApi.LanguagePackInfo language, String key, int resource) {
     if (!key.startsWith("MiniApp") || language == null) return null;
-    if (!"ru".equals(Lang.cleanLanguageCode(language.id)) && !"ru".equals(Lang.cleanLanguageCode(language.baseLanguagePackId))) return null;
+    boolean russian = "ru".equals(Lang.cleanLanguageCode(language.id)) || "ru".equals(Lang.cleanLanguageCode(language.baseLanguagePackId));
     Resources original = UI.getResources();
     Configuration configuration = new Configuration(original.getConfiguration());
     // The user's in-app language takes precedence over Android's system language, also on API16.
-    if (android.os.Build.VERSION.SDK_INT >= 17) configuration.setLocale(new java.util.Locale("ru"));
-    else configuration.locale = new java.util.Locale("ru");
+    java.util.Locale locale = russian ? new java.util.Locale("ru") : java.util.Locale.ENGLISH;
+    if (android.os.Build.VERSION.SDK_INT >= 17) configuration.setLocale(locale);
+    else configuration.locale = locale;
     if (cachedResources == null || !configuration.equals(cachedConfiguration)) {
       cachedConfiguration = configuration;
       cachedResources = new Resources(original.getAssets(), original.getDisplayMetrics(), configuration);

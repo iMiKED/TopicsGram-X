@@ -53,6 +53,7 @@ public final class MiniAppWebViewInstrumentation extends Instrumentation {
     int resultCode = Activity.RESULT_OK;
     try {
       check(MiniAppPlatform.isSupported(), "provider supports isolated secure bridge");
+      if (hostChecks) MiniAppTranslationDeviceChecks.run(this);
       runOnMainSync(() -> {
         for (String name : ProfileStore.getInstance().getAllProfileNames()) {
           if (name.startsWith("miniapp-contract-") || name.startsWith("tg-miniapp-" + (Long.MAX_VALUE - 110) + "-") ||

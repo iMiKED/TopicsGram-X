@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="MiniAppTitle">Мини-приложение</string>
+  <string name="MiniAppFullscreenClose">Закрыть</string>
+  <string name="MiniAppJoinDeclined">Ваша заявка на вступление отклонена.</string>
+  <string name="MiniAppJoinPending">Ваша заявка на вступление отправлена.</string>
+  <string name="MiniAppStorageAccount">Сохранённый аккаунт %1$s</string>
+  <string name="MiniAppRestoreStorage">Восстановить данные приложения из аккаунта, из которого выполнен выход</string>
   <string name="MiniAppSensitiveContentTitle">Контент 18+</string>
   <string name="MiniAppSensitiveContentConfirm">Подтвердите, что Вам исполнилось 18 лет, и измените настройки, чтобы видеть материалы, которые могут содержать откровенный или деликатный контент.</string>
   <string name="MiniAppAgeVerificationTitle">Проверка возраста</string>
