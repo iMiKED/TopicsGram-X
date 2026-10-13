@@ -64,3 +64,6 @@ Detailed local reports and private device evidence are maintained in the
 workspace `reports/TGMINIAPPS_COMPLETION_20261014.MD` and the six APK archives.
 Publishing this integration requires making the pinned TDLib bundle commit
 and its LFS objects available first. This local integration performs no push.
+The product submodule targets `iMiKED/tdlib`; that bundle repository must be
+created and populated before the product commit is published. The independent
+Mini Apps feature continues to use the upstream bundle.
