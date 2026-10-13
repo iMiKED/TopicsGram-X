@@ -748,6 +748,19 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
 
     // Custom
 
+    if (action.equals(getPackageName() + ".MINI_APP_SHORTCUT")) {
+      int accountId = intent.getIntExtra("account_id", TdlibAccount.NO_ID);
+      long owner = intent.getLongExtra("miniapp_owner", 0), botId = intent.getLongExtra("miniapp_bot", 0);
+      if (!TdlibManager.instance().hasAccount(accountId) || owner == 0 || botId == 0) return false;
+      Tdlib target = TdlibManager.instanceForAccountId(accountId).account(accountId).tdlib();
+      target.awaitInitialization(() -> handler.post(() -> {
+        if (target.myUserId() != owner || target.account().isDebug() != intent.getBooleanExtra("miniapp_test", false)) return;
+        openMainController(target.id());
+        target.miniApps().openShortcut(new TdlibContext(this, target), botId);
+      }));
+      return true;
+    }
+
     if (action.startsWith(Intents.ACTION_OPEN_MAIN)) {
       int accountId = intent.getIntExtra("account_id", TdlibAccount.NO_ID);
       if (accountId == TdlibAccount.NO_ID) {
@@ -868,7 +881,9 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
         consumer = account -> {
           ViewController<?> context = navigation.getCurrentStackItem();
           if (context != null) {
-            account.tdlib().awaitInitialization(() -> account.tdlib().ui().openTelegramUrl(new TdlibContext(MainActivity.this, tdlib), url, null, null));
+            TdlibUi.UrlOpenParameters parameters = new TdlibUi.UrlOpenParameters();
+            parameters.miniAppReturnToCaller = () -> moveTaskToBack(true);
+            account.tdlib().awaitInitialization(() -> account.tdlib().ui().openTelegramUrl(new TdlibContext(MainActivity.this, account.tdlib()), url, parameters, null));
           }
         };
         text = Lang.getString(R.string.OpenLinkAs);

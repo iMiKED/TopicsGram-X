@@ -693,6 +693,12 @@ public class TGInlineKeyboard {
             Drawables.draw(c, icon, dirtyRect.right - icon.getMinimumWidth(), dirtyRect.top, (styled || useBubbleMode) ? Paints.getInlineBubbleIconPaint(textColor) : textColorFactor == 0f ? Paints.getInlineIconPorterDuffPaint(isOutBubble) : Paints.getPorterDuffPaint(ColorUtils.fromToArgb(iconColor, Theme.inlineTextActiveColor(), textColorFactor)));
             break;
           }
+          case TdApi.InlineKeyboardButtonTypeWebApp.CONSTRUCTOR: {
+            // Telegram Android's bot_webview asset (DrKLO/Telegram, f2908b14), 12dp.
+            Drawable icon = getSparseDrawable(R.drawable.telegram_mini_app_12, ColorId.NONE);
+            Drawables.draw(c, icon, dirtyRect.right - icon.getMinimumWidth() - Screen.dp(3), dirtyRect.top + Screen.dp(3), Paints.getPorterDuffPaint(textColor));
+            break;
+          }
           case TdApi.InlineKeyboardButtonTypeLoginUrl.CONSTRUCTOR: {
             Drawable icon = getSparseDrawable(R.drawable.deproko_baseline_link_arrow_20, ColorId.NONE);
             Drawables.draw(c, icon, dirtyRect.right - icon.getMinimumWidth(), dirtyRect.top, (styled || useBubbleMode) ? Paints.getInlineBubbleIconPaint(ColorUtils.alphaColor(1f - progressFactor, textColor)) : textColorFactor == 0f && progressFactor == 1f ? Paints.getInlineIconPorterDuffPaint(isOutBubble) : Paints.getPorterDuffPaint(ColorUtils.alphaColor(1f - progressFactor, ColorUtils.fromToArgb(iconColor, Theme.inlineTextActiveColor(), textColorFactor))));
@@ -713,7 +719,6 @@ public class TGInlineKeyboard {
             break;
           }
           case TdApi.InlineKeyboardButtonTypeCopyText.CONSTRUCTOR:
-          case TdApi.InlineKeyboardButtonTypeWebApp.CONSTRUCTOR:
           case TdApi.InlineKeyboardButtonTypeDisabled.CONSTRUCTOR:
             break;
           default: {
@@ -1145,9 +1150,19 @@ public class TGInlineKeyboard {
       switch (type.getConstructor()) {
         case TdApi.InlineKeyboardButtonTypeBuy.CONSTRUCTOR:
         case TdApi.InlineKeyboardButtonTypeCopyText.CONSTRUCTOR:
-        case TdApi.InlineKeyboardButtonTypeWebApp.CONSTRUCTOR:
           // TODO
           break;
+
+        case TdApi.InlineKeyboardButtonTypeWebApp.CONSTRUCTOR: {
+          ViewController<?> controller = parent.controller();
+          if (controller instanceof MessagesController && ((MessagesController) controller).getChatId() == parent.getChatId()) {
+            TdApi.Message message = parent.getMessage();
+            long botId = message.viaBotUserId != 0 ? message.viaBotUserId : Td.getSenderUserId(message);
+            ((MessagesController) controller).openMiniApp(org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.Source.INLINE_KEYBOARD,
+              botId, ((TdApi.InlineKeyboardButtonTypeWebApp) type).url, "");
+          }
+          break;
+        }
 
         case TdApi.InlineKeyboardButtonTypeCallbackWithPassword.CONSTRUCTOR: {
           final TdApi.InlineKeyboardButtonTypeCallbackWithPassword callbackWithPassword = (TdApi.InlineKeyboardButtonTypeCallbackWithPassword) type;

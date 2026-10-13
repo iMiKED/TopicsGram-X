@@ -1894,6 +1894,7 @@ public class TdlibUi extends Handler {
 
     public ChatOpenParameters urlOpenParameters (UrlOpenParameters urlOpenParameters) {
       this.urlOpenParameters = urlOpenParameters;
+      if (urlOpenParameters != null && urlOpenParameters.afterChatOpened != null) this.after = urlOpenParameters.afterChatOpened;
       return this;
     }
 
@@ -2111,6 +2112,20 @@ public class TdlibUi extends Handler {
     // TODO progress
     tdlib.client().send(createRequest, object -> {
       switch (object.getConstructor()) {
+        case TdApi.ChatJoinResultSuccess.CONSTRUCTOR:
+          openChat(context, ((TdApi.ChatJoinResultSuccess) object).chatId, params);
+          break;
+        case TdApi.ChatJoinResultGuardBotApprovalRequired.CONSTRUCTOR:
+          tdlib.ui().post(() -> tdlib.miniApps().openGuardBot(context, (TdApi.ChatJoinResultGuardBotApprovalRequired) object,
+            joined -> openChat(context, joined, params), params != null ? params::onDone : null));
+          break;
+        case TdApi.ChatJoinResultRequestSent.CONSTRUCTOR:
+        case TdApi.ChatJoinResultDeclined.CONSTRUCTOR:
+          tdlib.ui().post(() -> {
+            UI.showToast(object instanceof TdApi.ChatJoinResultRequestSent ? R.string.MiniAppJoinPending : R.string.MiniAppJoinDeclined, Toast.LENGTH_LONG);
+            if (params != null) params.onDone();
+          });
+          break;
         case TdApi.Chat.CONSTRUCTOR:
           openChat(context, tdlib.objectToChat(object), params);
           break;
@@ -2996,6 +3011,8 @@ public class TdlibUi extends Handler {
     public TooltipOverlayView.TooltipBuilder tooltip;
     public boolean requireOpenPrompt, ignoreExplicitUserInteraction, forceDirectMessagesChat;
     public Runnable openPromptCancellationCallback;
+    public Runnable miniAppReturnToCaller;
+    public RunnableLong afterChatOpened;
     public String displayUrl;
 
     private ViewController<?> parentController;
@@ -3017,6 +3034,8 @@ public class TdlibUi extends Handler {
         this.parentController = options.parentController;
         this.originalUrl = options.originalUrl;
         this.sourceLinkPreview = options.sourceLinkPreview;
+        this.afterChatOpened = options.afterChatOpened;
+        this.miniAppReturnToCaller = options.miniAppReturnToCaller;
         if (options.sourceMessage != null) {
           sourceMessage(options.sourceMessage);
         }
@@ -4362,13 +4381,20 @@ public class TdlibUi extends Handler {
         break;
       }
 
+      case TdApi.InternalLinkTypeWebApp.CONSTRUCTOR:
+      case TdApi.InternalLinkTypeMainWebApp.CONSTRUCTOR: {
+        tdlib.miniApps().openLink(context, linkType, openParameters);
+        break;
+      }
+
+      case TdApi.InternalLinkTypeAttachmentMenuBot.CONSTRUCTOR: {
+        tdlib.miniApps().openAttachmentLink(context, (TdApi.InternalLinkTypeAttachmentMenuBot) linkType, openParameters);
+        break;
+      }
+
       case TdApi.InternalLinkTypeStory.CONSTRUCTOR:
       case TdApi.InternalLinkTypeLiveStory.CONSTRUCTOR:
       case TdApi.InternalLinkTypeStoryAlbum.CONSTRUCTOR:
-
-      case TdApi.InternalLinkTypeAttachmentMenuBot.CONSTRUCTOR:
-      case TdApi.InternalLinkTypeWebApp.CONSTRUCTOR:
-      case TdApi.InternalLinkTypeMainWebApp.CONSTRUCTOR:
 
       case TdApi.InternalLinkTypeInvoice.CONSTRUCTOR:
 

@@ -445,6 +445,12 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   private final HashMap<Long, Integer> chatOnlineMemberCount = new HashMap<>();
   private final TdlibCache cache;
   private final TdlibEmojiManager emoji;
+  private TdlibMiniAppManager miniApps;
+
+  public synchronized TdlibMiniAppManager miniApps () {
+    if (miniApps == null) miniApps = new TdlibMiniAppManager(this);
+    return miniApps;
+  }
   private final TdlibEmojiReactionsManager reactions;
   private final TdlibForumTopicManager topics;
   private final TdlibOutlineManager outline;
@@ -6756,10 +6762,17 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
   }
 
   public void setIgnoreSensitiveContentRestrictions (boolean ignoreSensitiveContentRestrictions) {
-    if (options.ignoreSensitiveContentRestrictions != ignoreSensitiveContentRestrictions) {
-      options.ignoreSensitiveContentRestrictions = ignoreSensitiveContentRestrictions;
-      send(new TdApi.SetOption("ignore_sensitive_content_restrictions", new TdApi.OptionValueBoolean(ignoreSensitiveContentRestrictions)), typedOkHandler());
-    }
+    setIgnoreSensitiveContentRestrictions(ignoreSensitiveContentRestrictions, null);
+  }
+
+  public void setIgnoreSensitiveContentRestrictions (boolean ignore, @Nullable RunnableBool done) {
+    final long userId = myUserId();
+    send(new TdApi.SetOption("ignore_sensitive_content_restrictions", new TdApi.OptionValueBoolean(ignore)), (ok, error) -> ui().post(() -> {
+      boolean accepted = error == null && userId != 0 && userId == myUserId();
+      if (accepted) options.ignoreSensitiveContentRestrictions = ignore;
+      else if (error != null) UI.showError(error);
+      if (done != null) done.runWithBool(accepted);
+    }));
   }
 
   public String uniqueSuffix () {
@@ -8834,12 +8847,12 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   @TdlibThread
   private void updateAttachmentMenuBots (TdApi.UpdateAttachmentMenuBots update) {
-    // TODO
+    miniApps().onAttachmentMenuBots(update.bots);
   }
 
   @TdlibThread
   private void updateWebAppMessageSent (TdApi.UpdateWebAppMessageSent update) {
-    // TODO
+    miniApps().onWebAppMessageSent(update.webAppLaunchId);
   }
 
   // Updates: NOTIFICATIONS
@@ -9306,6 +9319,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
     synchronized (dataLock) {
       this.ageVerificationParameters = update.parameters;
     }
+    ui().post(() -> miniApps().onAgeVerificationParametersChanged());
   }
 
   @Nullable
@@ -9432,7 +9446,7 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
 
   @TdlibThread
   private void updateChatJoinResult (TdApi.UpdateChatJoinResult update) {
-    // TODO
+    miniApps().onChatJoinResult(update);
   }
 
   private <T extends TdApi.Update> void updateChat (T update, long chatId, RunnableData<TdApi.Chat> chatModifier, RunnableData<T> updateDispatcher) {
@@ -9759,6 +9773,13 @@ public class Tdlib implements TdlibProvider, Settings.SettingsChangeListener, Da
       unreadCount = this.unreadTrendingStickerSetsCount = TD.calculateUnreadStickerSetCount(update.stickerSets);
     }
     listeners.updateTrendingStickerSets(update, unreadCount);
+  }
+
+  public boolean isTrustedMiniAppBot (long botUserId) {
+    synchronized (dataLock) {
+      if (trustedMiniAppBotUserIds != null) for (long id : trustedMiniAppBotUserIds) if (id == botUserId) return true;
+      return false;
+    }
   }
 
   private void updateTrustedMiniAppBots (TdApi.UpdateTrustedMiniAppBots update) {

@@ -1,0 +1,62 @@
+/*
+ * This file is a part of Telegram X.
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+package org.thunderdog.challegram.miniapps;
+
+import android.content.Context;
+import android.view.View;
+import android.widget.Toast;
+
+import org.thunderdog.challegram.R;
+import org.thunderdog.challegram.navigation.ViewController;
+import org.thunderdog.challegram.telegram.Tdlib;
+import org.thunderdog.challegram.tool.UI;
+
+/** Defensive endpoint. The manager rejects this platform before creating a session or WebView. */
+public final class MiniAppController extends ViewController<Void> {
+  public MiniAppController (Context context, Tdlib tdlib, MiniAppLaunchRequest request, Runnable onOpened) {
+    super(context, tdlib);
+  }
+
+  public MiniAppController (Context context, Tdlib tdlib, MiniAppLaunchRequest request, Runnable onOpened, MiniAppAgeVerification verification) {
+    this(context, tdlib, request, onOpened);
+  }
+
+  @Override
+  public int getId () { return R.id.controller_miniApp; }
+
+  @Override
+  protected View onCreateView (Context context) { return new View(context); }
+
+  public long launchId () { return 0; }
+  public long guardQueryId () { return 0; }
+  public boolean isAgeVerification (MiniAppAgeVerification verification) { return false; }
+  public boolean isMinimized () { return false; }
+  public boolean isShowing () { return false; }
+  public boolean isShowingFullscreen () { return false; }
+  public void onTabsChanged () { }
+  public void minimize () { }
+  public boolean canRestore (MiniAppLaunchRequest request) { return false; }
+  public String botName () { return ""; }
+  public CharSequence botTitle (int badgeDp) { return ""; }
+  public android.graphics.Bitmap preview () { return null; }
+  public int previewColor () { return 0; }
+  public boolean needsCloseConfirmation () { return false; }
+  public void restore () { }
+  public void requestClose () { close(); }
+
+  public void open (boolean allowWriteAccess) {
+    UI.showToast(R.string.MiniAppWebViewUnavailable, Toast.LENGTH_LONG);
+    close();
+  }
+
+  public void close () { destroy(); }
+
+  @Override
+  public void destroy () {
+    if (isDestroyed()) return;
+    tdlib.miniApps().onClosed(this);
+    super.destroy();
+  }
+}

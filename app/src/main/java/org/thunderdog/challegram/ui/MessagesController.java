@@ -379,6 +379,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private CameraAccessImageView mediaButton;
   private InvisibleImageView cameraButton, scheduleButton;
   private InvisibleImageView commandButton;
+  private org.thunderdog.challegram.miniapps.MiniAppMenuButton miniAppMenuButton;
   private @Nullable SilentButton silentButton;
 
   private HapticMenuHelper sendAsMenu;
@@ -1135,6 +1136,18 @@ public class MessagesController extends ViewController<MessagesController.Argume
     emojiButton.setOnClickListener(this);
     emojiButton.setLayoutParams(params);
 
+    miniAppMenuButton = new org.thunderdog.challegram.miniapps.MiniAppMenuButton(context, this::updateMiniAppMenuPadding);
+    miniAppMenuButton.setId(R.id.btn_miniApp);
+    RelativeLayout.LayoutParams menuParams = new RelativeLayout.LayoutParams(Screen.dp(40), Screen.dp(49));
+    menuParams.addRule(RelativeLayout.ALIGN_PARENT_TOP);
+    menuParams.addRule(Lang.rtl() ? RelativeLayout.ALIGN_PARENT_RIGHT : RelativeLayout.ALIGN_PARENT_LEFT);
+    menuParams.leftMargin = menuParams.rightMargin = Screen.dp(10);
+    miniAppMenuButton.setLayoutParams(menuParams);
+    miniAppMenuButton.setOnClickListener(v -> {
+      if (botHelper != null && botHelper.getMenuButton() != null) tdlib.miniApps().openBotMenu(this, botHelper.getMenuButton());
+    });
+    addThemeInvalidateListener(miniAppMenuButton);
+
     params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, Screen.dp(49f));
     params.addRule(RelativeLayout.ALIGN_PARENT_TOP);
     if (Lang.rtl()) {
@@ -1488,6 +1501,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
     if (previewMode == PREVIEW_MODE_NONE) {
       contentView.addView(emojiButton);
+      contentView.addView(miniAppMenuButton);
       contentView.addView(attachButtons);
       articleExpandButton = new ImageView(context);
       articleExpandButton.setImageResource(R.drawable.article_iv_fullscreen_24);
@@ -2009,8 +2023,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private void joinChat () {
     if (referrer != null) {
       tdlib.send(new TdApi.JoinChatByInviteLink(referrer.inviteLink), (chatJoinResult, error) -> {
-        if (error != null || chatJoinResult.getConstructor() == TdApi.ChatJoinResultDeclined.CONSTRUCTOR) {
+        if (error != null) {
           tdlib.send(new TdApi.AddChatMember(chat.id, tdlib.myUserId(), 0), tdlib.errorHandler());
+        } else if (chatJoinResult instanceof TdApi.ChatJoinResultGuardBotApprovalRequired) {
+          tdlib.ui().post(() -> tdlib.miniApps().openGuardBot(this, (TdApi.ChatJoinResultGuardBotApprovalRequired) chatJoinResult, null, null));
+        } else if (chatJoinResult instanceof TdApi.ChatJoinResultDeclined) {
+          UI.showToast(R.string.MiniAppJoinDeclined, Toast.LENGTH_LONG);
         }
       });
     } else {
@@ -2150,7 +2168,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       manager.scrollToNextUnreadReaction();
     } else if (viewId == R.id.msg_command) {
       // FIXME: rely on some state, not on icon id
-      if (lastCmdResource == R.drawable.deproko_baseline_bots_command_26) {
+      if (lastCmdResource == R.drawable.deproko_baseline_bots_command_26 || lastCmdResource == R.drawable.baseline_launch_24) {
         onCommandClick();
       } else if (lastCmdResource == R.drawable.deproko_baseline_bots_keyboard_26 ||
         lastCmdResource == R.drawable.baseline_direction_arrow_down_24 ||
@@ -3205,6 +3223,11 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   public void shareItem (Object item) {
     if (item instanceof InlineResultButton) {
+      InlineResultButton button = (InlineResultButton) item;
+      if (button.webAppUrl() != null) {
+        openMiniApp(org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.Source.INLINE_RESULTS, button.getUserId(), button.webAppUrl(), button.getText());
+        return;
+      }
       if (!hasSendBasicMessagePermission()) {
         return;
       }
@@ -3441,9 +3464,12 @@ public class MessagesController extends ViewController<MessagesController.Argume
       updateCommandButton(R.drawable.deproko_baseline_bots_command_26);
       updateCommandButton(false);
       botHelper = new BotHelper(this, chat);
+      // Cached bot info can be delivered synchronously by the constructor.
+      updateCommandButton(botHelper.hasCommands());
     } else {
       updateCommandButton(0);
       botHelper = null;
+      updateMiniAppMenuButton(false);
     }
 
     liveLocation = new LiveLocationHelper(context, tdlib, chat.id, getMessageTopicId(), liveLocationView, false, this);
@@ -3911,6 +3937,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
       sendButton.setVisibility(View.GONE);
       messageSenderButton.setVisibility(View.GONE);
     }
+    updateMiniAppMenuButton(false);
     updateBottomBarStyle();
     updateMessagesViewInset();
   }
@@ -8106,6 +8133,8 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public void updateCommandButton (boolean isVisible) {
+    updateMiniAppMenuButton(false);
+    if (botHelper != null && botHelper.getMenuButton() != null && lastCmdResource == R.drawable.deproko_baseline_bots_command_26) isVisible = false;
     boolean ok = setCameraVisible(!isVisible || !ChatId.isUserChat(getChatId()));
     if (commandButton.setVisible(isVisible) || ok) {
       attachButtons.updatePivot();
@@ -8113,6 +8142,10 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   private void updateCommandButton (int resource) {
+    if (resource == R.drawable.deproko_baseline_bots_command_26 && botHelper != null && botHelper.getMenuButton() != null) {
+      lastCmdResource = resource;
+      resource = 0;
+    }
     if (resource == 0) {
       if (commandButton.setVisible(false)) {
         attachButtons.updatePivot();
@@ -8145,6 +8178,23 @@ public class MessagesController extends ViewController<MessagesController.Argume
     closeEmojiKeyboard(true);
   }
 
+  private void updateMiniAppMenuButton (boolean animated) {
+    if (miniAppMenuButton == null) return;
+    TdApi.BotMenuButton menu = botHelper != null ? botHelper.getMenuButton() : null;
+    miniAppMenuButton.setVisibility(menu != null && !inPreviewMode && !areScheduled && emojiButton.getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
+    miniAppMenuButton.setMenu(menu != null ? menu.text : "", (inputView == null || inputView.length() == 0) && !getKeyboardState() && !emojiShown && !commandsShown, animated);
+    updateMiniAppMenuPadding();
+  }
+
+  private void updateMiniAppMenuPadding () {
+    if (miniAppMenuButton == null || emojiButton == null || inputView == null) return;
+    int extra = miniAppMenuButton.getVisibility() == View.VISIBLE ? miniAppMenuButton.buttonWidth() + Screen.dp(10) : 0;
+    emojiButton.setTranslationX(Lang.rtl() ? -extra : extra);
+    inputView.setPadding(Screen.dp(Lang.rtl() ? 55 : 60) + (Lang.rtl() ? 0 : extra), inputView.getPaddingTop(),
+      Screen.dp(Lang.rtl() ? 60 : 55) + (Lang.rtl() ? extra : 0), inputView.getPaddingBottom());
+    inputView.checkPlaceholderWidth();
+  }
+
   public void hideKeyboard (boolean personal) {
     if (personal && commandsShown) {
       commandsState = false;
@@ -8162,6 +8212,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private void setCommandsShown (boolean commandsShown) {
     if (this.commandsShown != commandsShown) {
       this.commandsShown = commandsShown;
+      updateMiniAppMenuButton(true);
       updateBottomWrapOffset();
     }
   }
@@ -8287,6 +8338,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
     sendButton.setTranslationY(y);
     emojiButton.setTranslationY(y);
+    if (miniAppMenuButton != null) miniAppMenuButton.setTranslationY(y);
     attachButtons.setTranslationY(y);
     messageSenderButton.setTranslationY(y);
     updateArticleExpandButton();
@@ -8533,6 +8585,24 @@ public class MessagesController extends ViewController<MessagesController.Argume
       builder.setNegativeButton(Lang.getString(R.string.Cancel), (dialog, which) -> dialog.dismiss());
       showAlert(builder);
     }
+  }
+
+  public void openMiniApp (org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.Source source, long botUserId, String url, String buttonText) {
+    if (botUserId == 0 || areScheduledOnly()) return;
+    hideAllKeyboards();
+    tdlib.miniApps().open(this, org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.fromChat(this, source, botUserId, url, buttonText));
+  }
+
+  @Override
+  public void onOpenWebApp (String buttonText, String url, boolean oneTime) {
+    long botId = tdlib.chatUserId(getChatId());
+    if (botId == 0 || areScheduledOnly()) return;
+    final long keyboardMessageId = commandsMessageId;
+    final long launchChatId = getChatId();
+    hideAllKeyboards();
+    tdlib.miniApps().open(this, org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.fromChat(this,
+      org.thunderdog.challegram.miniapps.MiniAppLaunchRequest.Source.REPLY_KEYBOARD, botId, url, buttonText),
+      oneTime ? () -> { if (!isDestroyed() && getChatId() == launchChatId && commandsMessageId == keyboardMessageId) onDestroyCommandKeyboard(); } : null);
   }
 
   @Override
@@ -9628,6 +9698,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         }
       }
       boolean result = super.onKeyboardStateChanged(visible);
+      updateMiniAppMenuButton(true);
       if (emojiShown && emojiKeyboardFrameLayout != null) {
         emojiKeyboardFrameLayout.onKeyboardStateChanged(visible);
       }
@@ -9787,6 +9858,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   private void setEmojiShown (boolean emojiShown, boolean animated) {
     if (this.emojiShown != emojiShown) {
       this.emojiShown = emojiShown;
+      updateMiniAppMenuButton(true);
       if (emojiShown) {
         hideSoftwareKeyboard();
       }
@@ -9900,6 +9972,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
   }
 
   public void onInputTextChange (CharSequence charSequence, boolean byUserAction) {
+    updateMiniAppMenuButton(true);
     if (sendMenu != null) {
       sendMenu.hideMenu();
     }
