@@ -50,3 +50,27 @@ function(resolve_tdlib_library tdlib_dir ndk_revision platform abi output_variab
   message(FATAL_ERROR
     "No compatible libtdjni.so for TDLib ${expected_commit}, NDK ${ndk_revision}, platform ${platform}, ABI ${abi}. Checked: ${candidates}")
 endfunction()
+
+# The same SDK:ABI-flavor allowlist selects Gradle's Java bindings. A universal
+# APK deliberately stays on the stock schema even when this invocation is ARM64.
+function(resolve_variant_tdlib_library tdlib_dir ndk_revision platform abi sdk_flavor abi_flavor output_variable)
+  set(bundle_dir "${tdlib_dir}")
+  set(variants_file "${tdlib_dir}/mini-apps/variants.txt")
+  if(EXISTS "${variants_file}")
+    if(abi_flavor STREQUAL "")
+      message(FATAL_ERROR "TDLib bundle selection requires the ABI flavor")
+    endif()
+    file(STRINGS "${variants_file}" enhanced_variants)
+    if("${sdk_flavor}:${abi_flavor}" IN_LIST enhanced_variants)
+      if(NOT abi STREQUAL "arm64-v8a")
+        message(FATAL_ERROR "The Mini Apps TDLib bundle contains only ARM64")
+      endif()
+      set(bundle_dir "${tdlib_dir}/mini-apps")
+    endif()
+    if(NOT CMAKE_SCRIPT_MODE_FILE)
+      set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${variants_file}")
+    endif()
+  endif()
+  resolve_tdlib_library("${bundle_dir}" "${ndk_revision}" "${platform}" "${abi}" selected_library)
+  set(${output_variable} "${selected_library}" PARENT_SCOPE)
+endfunction()

@@ -30,6 +30,8 @@ val appliedNdkVersion = if (useLegacyNdk) {
   config.build.primaryNdkVersion
 }
 val ndkMinSdkVersion = appliedNdkVersion.ndkVersionToMinSdk()
+val miniAppsTdlibDirectory = layout.projectDirectory.dir("../tdlib/mini-apps")
+val miniAppsTdlibVariants = miniAppsTdlibDirectory.file("variants.txt").asFile.readLines().filter { it.isNotBlank() }.toSet()
 
 val validateGitSetupTask = tasks.register<ValidateGitSetupTask>("validateGitSetup") {
   group = "Setup"
@@ -674,11 +676,20 @@ android {
         ndk.abiFilters.addAll(variant.filters)
         externalNativeBuild.ndkBuild.abiFilters(*variant.filters)
         externalNativeBuild.cmake.abiFilters(*variant.filters)
+        externalNativeBuild.cmake.arguments("-DTGX_ABI_FLAVOR=${variant.flavor}")
       }
     }
   }
 
   androidComponents {
+    onVariants(selector().all()) { variant ->
+      val flavors = variant.productFlavors.toMap()
+      if ("${flavors["SDK"]}:${flavors["ABI"]}" in miniAppsTdlibVariants) {
+        val version = miniAppsTdlibDirectory.file("version-name.txt").asFile.readText().trim()
+        require(version.matches(Regex("[0-9]+\\.[0-9]+\\.[0-9]+-[0-9a-f]{7}"))) { "Invalid Mini Apps TDLib version" }
+        requireNotNull(variant.buildConfigFields).put("TDLIB_VERSION", BuildConfigField("String", "\"$version\"", "Matched Mini Apps Java/JNI bundle"))
+      }
+    }
     val aapt2File = sdkComponents.sdkDirectory.map {
       it.file("build-tools/${config.build.buildToolsVersion}/aapt2${if (isWindowsHost()) ".exe" else ""}").asFile.absolutePath
     }
