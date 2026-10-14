@@ -45,7 +45,7 @@
 	path = tdlib
 	url = https://github.com/iMiKED/tdlib
 	shallow = true
-	branch = main
+	branch = fork/mini-apps-variant-bundles
 [submodule "jni-utils"]
 	path = app/jni/third_party/jni-utils
 	url = https://github.com/TGX-Android/jni-utils
