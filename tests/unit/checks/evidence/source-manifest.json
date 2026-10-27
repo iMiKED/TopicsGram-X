@@ -1,0 +1,236 @@
+[
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/component/chat/ForumTopicListDiffTest.kt",
+    "originalSha256": "08d3f664f20778514f89e5bce2afeee5cdf399f7a65b07558901582710d7f828",
+    "sha256": "84d12a9ef3c0e441555e119e3b6f24ba53c227d33217c54aec6fb1a4e804e85e",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/component/chat/InputSendContextTest.java",
+    "originalSha256": "50aaa977dd368b063bb364e87d4d9a2dd17cfa70414ba88822cb0e254e9bbb0d",
+    "sha256": "192fc7fd2bbbe8c8b4df839426d23691167dfc2d08b718747ef393c675496e58",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/component/chat/TopicAnchorTest.java",
+    "originalSha256": "4536993fbf1362d04a79c62e57937117f64be49401553a9135fc4562030bfafe",
+    "sha256": "3a224a88efd7f0af5da727c4c8256460c3d866051f706ae8c3006bf4d545a793",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumChatPreviewTest.kt",
+    "originalSha256": "aa218dd1d749127af2595433cb46c538da04f8db9cdaed7e6b4e3ca3d66d374f",
+    "sha256": "7cfb88a5b83347b00f14c487040529b1d0e90bd2a359f4e343411909abc579a6",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumDraftCodecTest.java",
+    "originalSha256": "27c77d40aade169cbafbc442d2ba1ebc3fb8adcb899d002e603521994a6c0441",
+    "sha256": "208f5d431778be9bc3a9063344d0e726ab6bc11eb98053cc25838c5923fbeab9",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumMessageLayoutTest.java",
+    "originalSha256": "d87714ad065a795731eefd7e7aadbb84d4e27ad6b7c6def11dc8fd2dd0958f1e",
+    "sha256": "3ed45176d9ed6b26ba685c3e31039e20128154d40e4062db7b5f1942d1143cf2",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumNotificationReadScopeTest.java",
+    "originalSha256": "55e7b28f6f8d76e936dc9d010a36652f9afce18a9acb0cdde8ff67f777976859",
+    "sha256": "83f620e60c756057119373a22d10dec9ccd3695b3b63bad49296d0b4ddf87fcd",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumPresentationTest.kt",
+    "originalSha256": "997c5f7ddf154882865d7c8bf9311160c449e5a6bc57996835a172188915c170",
+    "sha256": "a28b175be8c7b9e16c162f573b1d3a04a6b75f5abcf6035003da93d3ebb0ac2e",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumRailLayoutTest.kt",
+    "originalSha256": "30e610cc4f26a4135688b950a8405f90e10147f5d2fbe1d40f570dcbb44801a7",
+    "sha256": "4ceb9d6b07bfc4bc8c682217e0a89eb247c9af2ecd6cc19af4698457237f2144",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumRailScrollTest.kt",
+    "originalSha256": "67556f08c9ed4b9de6f167ae2004a6f449b6cd72704030092e834c649cdfd17e",
+    "sha256": "1ad5222fff2e673aafda3ebc9edd6ff1ecf69480e2125f269acc48317168a1fb",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTabsStateTest.java",
+    "originalSha256": "01f59aafa06504b5564584d69f7eef3b832530b67054820c1ec2b63c33c07ab8",
+    "sha256": "4b06e64534a19a918fcbf806e8bf5e3f0c9734058f51d346bc64ac437abf91a1",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicAvailabilityTest.java",
+    "originalSha256": "3829c568e7d023072d9a6d96860f26d75c092f71f928d329db24b87e598d3677",
+    "sha256": "12e831456a97694cb93aaa6993508e62088dd234cfeb51bdb02d9629d4fa66e3",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicEditorStateTest.java",
+    "originalSha256": "d0856c23ea88309c986c5f055d2e16b0f0cbc7fd257dbc77862009bf210313b0",
+    "sha256": "7a07e595aed7f37210a7b4985050da4b0242b25e8ac9f82bf65522bfb2a2f66e",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicMediaTest.java",
+    "originalSha256": "da7e325c51032ae72057abb9562fb4dc145de9efc4455a96db36022849622a0e",
+    "sha256": "a6a3a05aeae5f52aae170860b8c415c74c1a735343b65351f4ecbe0e5ecbffe3",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicNotificationsTest.java",
+    "originalSha256": "5f9d0ee14405db6f9c3758bf83bba689397b947bbf52368bad53107952e563cf",
+    "sha256": "bec20cf7a526c51d482bb6bc109175c8b37aeae8ec56efde8dbd7b6deffb2543",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicPolicyTest.kt",
+    "originalSha256": "fa3c7fe69c46dd0c33b63090898cea4ece58c5c2e5699bc4fa9a505c344aa2c4",
+    "sha256": "8c8529652a4fc4c2f48d48a8cdf1c85e814c8e12461cee8775a6fa1fecb5715b",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicProfileLinkTest.java",
+    "originalSha256": "1f0c1d1d90e27651689cff8c4955459a29c15996f49082ce9dea2afe999486d5",
+    "sha256": "6666d6ac960a0b14806663ad64bcdf001cb07b2c0eea5afa0d5d1f7d7e2dd3f4",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/ForumTopicSelectionTest.java",
+    "originalSha256": "06b6ebce01ac0ace43c752a2ad857284afc297e0e0cb45fc0e6a505308af43da",
+    "sha256": "cd8b3c98590f9ed8d7684b25516c8eb9c9aae4a855b5c635025a14abeaaa7bf1",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/data/MessageTopicsTest.java",
+    "originalSha256": "d12798e5077e2ce92fdcb0bd9ce4b3a33dd0951a87656282a62a851803201f6e",
+    "sha256": "285d7d0abaccdcdb9aae093768ba2bd822c0d02c5ed0f7b18693d81b8e743d29",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumChatPreviewStoreTest.kt",
+    "originalSha256": "90d9d89017c0823afeb06e8e170b8ecaf23538b3f26347801ddb112cbd7a4a3e",
+    "sha256": "c63fee121d2fe449746b603b3280b0e3712a11fbd7e7ac57540674d379f9a076",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumHistoryTest.kt",
+    "originalSha256": "cb0b4e6f2794e209e6178314e71582097b6eb7fa057f02cb043eb1f8ebd4bcfa",
+    "sha256": "45b5a26358a5d60e6dcfe05b01c451ed935c2888a5a45a5679194781feb3f087",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumNavigationTest.kt",
+    "originalSha256": "580ebfc6b46d344d85060e84bb430c3e7bd3d2a367987976546a655887ff51fe",
+    "sha256": "b9625c3fab480256dee21a28186903b6754d15ef585ea98bbf711ffcf037add0",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTabsNavigationTest.kt",
+    "originalSha256": "ddadcc46a06524f296ee0f6fcdc6bc0195a8fbd8f93ba2d7a17c277d1bbc4d49",
+    "sha256": "69cddaab3b5fd13b8c62c75342576de6b63fd86e45be62a2b2233fdb46e1e9d8",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTabsStateMruTest.java",
+    "originalSha256": "17b233002a129de216e60fad61c8c6802997c643d50a5974ea1149898bc13455",
+    "sha256": "8fc1073529989b300a2624186a1f7b0b019bcebdd8caf4623cf1cba3efe593b1",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicActionsTest.kt",
+    "originalSha256": "70268110b30a93f68aba28150667002f1cc904c0eef1ad0b09501c4b217fae7d",
+    "sha256": "995979edb8be4843e0dd0cca08262e3d2dfd099dbc1128a0ba970140eec602b0",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicBatchTest.kt",
+    "originalSha256": "91e2f4998ed7573758d3f9e3f97921207f52fcec6f50553c3cb1eb728934578f",
+    "sha256": "2568b34d12929380637b6bb2473a906420c9dce81227d3dd759517736a24395a",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicMutationReconciliationTest.kt",
+    "originalSha256": "f58fcca7140578d1ceedd027ac3a88d2a6b72cbe93db63e4e906486d39b99111",
+    "sha256": "93d641d2cb693a8ed25128fc955945267666dc89e95e9c227e9b7005f2b45966",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicStoreTest.kt",
+    "originalSha256": "04c610e7df7f359419ec5a06ac99d39ea952eaf8c0895aae826da2fa3dbf8528",
+    "sha256": "a79855de921dd862cd3223b9a21ef67269d953ce96bd2d72b7c5e4071a59cfed",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicStressTest.kt",
+    "originalSha256": "13ea9497b962cdb5ca908d5227d764e6cdefa29061adb1cb59bd2084672f63a3",
+    "sha256": "9ff3237d38d16ba8b66eb43c40c1aae702e53bf7c7db6b93f14ff76c9ba9a93e",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicTestBackend.kt",
+    "originalSha256": "22b6c0caa18c714e402c91c95d23ef780c69e4c5568cbdf721417704e8acf7b9",
+    "sha256": "dd41f00b0e6bab7a7b662148d448015c4fc9f79c8c7b52f0ad4de6923d806045",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumTopicUpdatesTest.java",
+    "originalSha256": "69555cc065725b0c5b2efe844f2567722d4ac7158354a6411971459bd1d8d967",
+    "sha256": "c761d0da3fd9f247ea98fbf34a3924c002245fba42b1d983d30741b7b5d3d092",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/ForumUnreadCounterTest.kt",
+    "originalSha256": "7fa9953c2ce1c98eaed62f12b008cb25c700a408227e1859e18ef1adf0560a2b",
+    "sha256": "adbd995bb6321aceee939c8ce01ed2eb58668d8e8b4d065c87ce4cf4a216d61e",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/P801PreviewDraftInterestTest.kt",
+    "originalSha256": "8845f864b8956e430330957679eec41496c40532bc613c0af5eaf6bd126e1f8b",
+    "sha256": "a2cd7eadc58ea7e66447f37031fac1f92a5fdd467166b1a157e2c29f773498be",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/telegram/P801PreviewLifecycleTest.kt",
+    "originalSha256": "1be9ba185bb6ab472c52f437409bfb9352c542b1d3e08923934387c06bc2d677",
+    "sha256": "b579dfe47141dfc9498b2664bb44fbeae867fedff598e36ce317acb43f35fbb7",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/ui/ForumTabsNavigationTest.java",
+    "originalSha256": "042c1cae79b83862bcd7d7b7fa531d4dc6dcf2a89328bee30289a413271c23c1",
+    "sha256": "92e51a8012b5bae2717c62927879a48a2f1521071d20a3cfe3a32b521bd48acc",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/ui/ForumTopicActionPresentationTest.java",
+    "originalSha256": "53054708d3e003fcb89b7d1b09c902794febd1e256be2b613aa8a12d0d4476aa",
+    "sha256": "eecc5d89f0c3257e0135a3184c638e921e1d250ea52f212d025a6e1969cfcb63",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/unsorted/ScrollStateKeyTest.java",
+    "originalSha256": "5b1e8b5aaa16be2d73d238833473518b1dad364c786050d15cfb56716ae65e99",
+    "sha256": "b6c516c955853df03359763fa80fb744ccba7efb71243da069b886bc71ed6a0d",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/org/thunderdog/challegram/widget/ForumTopicsTabsLayoutTest.java",
+    "originalSha256": "45a9fc22809211f6210c05059b07a887bc2633ebd6ba2bc9e21bd672cd0f0854",
+    "sha256": "ad60c3108183c0a3acff2fd032fb881979cf572e25e5e6c903665b290de52147",
+    "transformation": "Provenance annotation and LF only; assertions and executable code preserved."
+  },
+  {
+    "file": "tests/unit/checks/ForumUpstreamMigrationCheck.kt",
+    "originalSha256": "eaa5207b5a919718d5b28f1fb05bc2b33ff2ee341f8d5f3869e8476bd8329318",
+    "sha256": "eaa5207b5a919718d5b28f1fb05bc2b33ff2ee341f8d5f3869e8476bd8329318",
+    "transformation": "Byte-identical copy."
+  }
+]

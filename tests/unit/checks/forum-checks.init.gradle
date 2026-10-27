@@ -1,0 +1,10 @@
+// Local checks only; do not copy this registration into production build files.
+gradle.beforeProject { project ->
+  if (project.path == ':app') {
+    project.plugins.withId('com.android.application') {
+      project.extensions.getByName('android').sourceSets.getByName('test').java.srcDir(
+        new File(project.rootDir, 'tests/unit/checks')
+      )
+    }
+  }
+}

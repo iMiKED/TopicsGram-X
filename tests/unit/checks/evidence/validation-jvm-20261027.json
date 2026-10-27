@@ -1,0 +1,632 @@
+[
+  {
+    "mode": "Tests",
+    "task": "testLatestDebugUnitTest",
+    "commit": "48c9c2fbeacaa183b8a02e68214d1fbd54f14ff0",
+    "totals": {
+      "tests": 548,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suiteCount": 39,
+    "scope": "Existing exact-Validation JVM evidence; not a new clean/stock TDLib or packaged-check run.",
+    "suites": [
+      {
+        "name": "org.thunderdog.challegram.charts.SegmentTreeTest",
+        "tests": 1,
+        "xmlSha256": "163f1f948a99cda984b4cd976f1bf523e0550d8d88427b45cc46ad08c53ed7d6"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.ForumTopicListDiffTest",
+        "tests": 6,
+        "xmlSha256": "4182e535938448738a3b1d6fb67806a6737caa7bb766200eb72476f7418d294e"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.InputSendContextTest",
+        "tests": 8,
+        "xmlSha256": "5470bbfb02352eb901174fd760d308ef247f5b12b5b7bcd646aaa74a18f7d0b5"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.TopicAnchorTest",
+        "tests": 1,
+        "xmlSha256": "24444db98221b60bfc5c8092d4778a5c686e02b3e00635c6a0a188c0eabdca47"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumChatPreviewTest",
+        "tests": 14,
+        "xmlSha256": "a6ad51d170a8b19ebe22cd7b59374a9674c24948c7d60a827598bdc64b4176f0"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumDraftCodecTest",
+        "tests": 11,
+        "xmlSha256": "88b061f57be51d339af3b453dcbe1305dd6f2616d1767096c92e2b5a53b9f5a9"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumMessageLayoutTest",
+        "tests": 26,
+        "xmlSha256": "fad14dde861f0d3508f951aaa9d8ed9c0e70e666c6492a0337a269ba5893cf4a"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumNotificationReadScopeTest",
+        "tests": 20,
+        "xmlSha256": "d92c87f1e6800a42d994daaece127f1b75aa310272de6b4ea919fdd71a1bd83c"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumPresentationTest",
+        "tests": 29,
+        "xmlSha256": "5adfc742038e0f8773c19046a2ce3415e48d3260251926d1dc148ed47af8f2ad"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailLayoutTest",
+        "tests": 10,
+        "xmlSha256": "2ed7a39704d0f2486c480ece6ecea8c450a6d30217deeebae373b45a53362bb2"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailScrollTest",
+        "tests": 4,
+        "xmlSha256": "5f7afe8901aa0735d99207b407ff0805bed27408f73ccc874d101fd67e7a31e0"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTabsStateTest",
+        "tests": 12,
+        "xmlSha256": "df8254788b4394f9385b646aba205f65b65d0b485e594f078eb86277f5a3f0ab"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicAvailabilityTest",
+        "tests": 4,
+        "xmlSha256": "36323125f89ad6242ca587308e33ebfa7731885eae86083b7890151c1eaa7b7b"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicEditorStateTest",
+        "tests": 19,
+        "xmlSha256": "d8532ea86237d225cd90cb79afe22f56148278d7756f8cc5525d7f21600a9cf7"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicMediaTest",
+        "tests": 11,
+        "xmlSha256": "3f5011f456de84c7f642aa07392224ccb551f68ad27a7f9d7e7f5bb462eedda6"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicNotificationsTest",
+        "tests": 9,
+        "xmlSha256": "44a0862ef1001893032f5d68a965252c37197e420c1b5bfafc77f25eb7dd2918"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicPolicyTest",
+        "tests": 18,
+        "xmlSha256": "9c2dbe98a21068fac69b5d084552494ed7d3537a650d9991f48930c389f210d7"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicProfileLinkTest",
+        "tests": 7,
+        "xmlSha256": "d8a55eed4272a118a5bb1622c53be4b7e6e9b58e573d4ee1a0d7135bf1f4a3a0"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicSelectionTest",
+        "tests": 12,
+        "xmlSha256": "adf17ae1345a18ea20c7fecb9e23aeb200d7e176036d266d3da9e735d2705470"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.MessageTopicsTest",
+        "tests": 9,
+        "xmlSha256": "51a5bdbd8c4f172329894ad9554c530e8df21f45b2771835b2dd22f803657d71"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumChatPreviewStoreTest",
+        "tests": 14,
+        "xmlSha256": "c3ba133be9b806df194e478c923a08da8bf205f636589be910ecf9e0037bd0f9"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumHistoryTest",
+        "tests": 33,
+        "xmlSha256": "d05d360e1190f63d290b6219af47cda9254eff75c21da1dbf7d072198de4e552"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumNavigationTest",
+        "tests": 37,
+        "xmlSha256": "cb4220dbc744284b769c3940cf0d0ed63e93bcb8a451e06413f17c704af18256"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsNavigationTest",
+        "tests": 15,
+        "xmlSha256": "db4c909e4ad3c600b3fc00c26a5cefeb42014bd32ec86485bb4ee12211592747"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsStateMruTest",
+        "tests": 9,
+        "xmlSha256": "364635494568d5689370a318969d822f82cc8c6072bbcd68103ca90dd118abd3"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicActionsTest",
+        "tests": 13,
+        "xmlSha256": "7c1044ae8816825dc42727cbc2bdbfa0c995514019ca0a9678d6f012ecb5f760"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicBatchTest",
+        "tests": 14,
+        "xmlSha256": "20c4d212a29d92eb474249607b7b98d3f72f09ed0de352823b2e670d0265a6ad"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicMutationReconciliationTest",
+        "tests": 6,
+        "xmlSha256": "161a5542c3ce3b8a8bc6a466d0a946f21a25aa9af27685c33cfe71b06f13cef9"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStoreTest",
+        "tests": 63,
+        "xmlSha256": "c5c118fe2f43ac5fd064838b9ca292d7a58fa3c879a63a28b751dfcc67954775"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStressTest",
+        "tests": 6,
+        "xmlSha256": "ec4eff7328db2b948bb7a8b3c8cf543dfac053e8e501cfa97cca5905c09c08c1"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicUpdatesTest",
+        "tests": 3,
+        "xmlSha256": "4dd754296ec94a708e859199245ffc942f71ad432a40d07deaf6473ff9bf7465"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUnreadCounterTest",
+        "tests": 27,
+        "xmlSha256": "34bf4b1e5d0917c9f1a968eea61de8cc6d190a4e7bed79be56a22e8e2ee760ba"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUpstreamMigrationCheck",
+        "tests": 4,
+        "xmlSha256": "dc8eb23c4ca75bc1096acfa41d223a538cc27876fc24aa9bb54ec1824f202f5c"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewDraftInterestTest",
+        "tests": 4,
+        "xmlSha256": "49186545f7544dfda6e985719a8e4a1556c7296607424c071683433154b897f3"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewLifecycleTest",
+        "tests": 5,
+        "xmlSha256": "beb744c1c4194dd3ba1cf86dc6ecd15843b7114889d634b3cbc4fd360b0bcc9c"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTabsNavigationTest",
+        "tests": 20,
+        "xmlSha256": "112ddc194ce3de95ce3298f1d7b09ded40c7c12aec5686dd5c66477d1cbdaeab"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTopicActionPresentationTest",
+        "tests": 21,
+        "xmlSha256": "2f8553d11d6ae212e499bc56c16b66ce12a2e5841c9dca20ff8d7aae15f10f3f"
+      },
+      {
+        "name": "org.thunderdog.challegram.unsorted.ScrollStateKeyTest",
+        "tests": 7,
+        "xmlSha256": "96d440e07ec0d2a7cd5a1cc6243e20802447ae732af4671bf28ce8b0ec416e60"
+      },
+      {
+        "name": "org.thunderdog.challegram.widget.ForumTopicsTabsLayoutTest",
+        "tests": 16,
+        "xmlSha256": "f387fedfefcc399aef9d488e0d83ec709dfe637cc55663a714bcb33fb99cdf3a"
+      }
+    ]
+  },
+  {
+    "mode": "LollipopTests",
+    "task": "testLollipopDebugUnitTest",
+    "commit": "48c9c2fbeacaa183b8a02e68214d1fbd54f14ff0",
+    "totals": {
+      "tests": 548,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suiteCount": 39,
+    "scope": "Existing exact-Validation JVM evidence; not a new clean/stock TDLib or packaged-check run.",
+    "suites": [
+      {
+        "name": "org.thunderdog.challegram.charts.SegmentTreeTest",
+        "tests": 1,
+        "xmlSha256": "a130989630d9585fee087f4856c3e84c7d539a26709aea57834c481366a46c08"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.ForumTopicListDiffTest",
+        "tests": 6,
+        "xmlSha256": "3b9d6a02effc73cc95823a95a0818b433bc82f5694cfa181c45475ab09f594ac"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.InputSendContextTest",
+        "tests": 8,
+        "xmlSha256": "ab55168c9e1660089d59e5cdc05b2bba1a3793b30fae25f4370ecb96c7bde821"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.TopicAnchorTest",
+        "tests": 1,
+        "xmlSha256": "c38098fbd72349d8ce9ee8195f8a2c246a93ca210d4a94e658295494c52a3ee2"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumChatPreviewTest",
+        "tests": 14,
+        "xmlSha256": "4848423b707f2a21a7df9e40d661344587a12bcc34a37854dede25ddd1f9b1f8"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumDraftCodecTest",
+        "tests": 11,
+        "xmlSha256": "ecc01ff6ffe848210ec0e3efd59ac4ae3fd8b2775afd485afc2d0bf06d828687"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumMessageLayoutTest",
+        "tests": 26,
+        "xmlSha256": "24a3545ceb71ac61e460cc2bf7118a14ee5fa361910798e1e4d5140fc8df9d22"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumNotificationReadScopeTest",
+        "tests": 20,
+        "xmlSha256": "a1de4bb1f132c7d281624c6540f5a6a7018ec19739fdb97cad974ccf30df796a"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumPresentationTest",
+        "tests": 29,
+        "xmlSha256": "21620b07b7e80e4c1d2cdac9bb48668d591d1ca66bb79f34043eebc9a63a81f8"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailLayoutTest",
+        "tests": 10,
+        "xmlSha256": "edb30817bc7038ad3f975cb39cd736359d693230488449585b72dfa112564be4"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailScrollTest",
+        "tests": 4,
+        "xmlSha256": "55738ca21e772dd82e1c0e2999324a8b628740c515246d550af24ae0567c94ed"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTabsStateTest",
+        "tests": 12,
+        "xmlSha256": "f6fd177833ad4f2ada85455453b0611ffb6b094b4b91f1cc4b5e3458fc537518"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicAvailabilityTest",
+        "tests": 4,
+        "xmlSha256": "8801198838f25aa119ea844109c0b0f5ee6d72c6793086fd8a2c5255df87bff4"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicEditorStateTest",
+        "tests": 19,
+        "xmlSha256": "daeba84aef18a89745ed9cdcebb049c0dddfd9123aed5d24984bd6902229f56c"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicMediaTest",
+        "tests": 11,
+        "xmlSha256": "c83a5d6b5bde926dc305ff6214847f7802e43d3a4aea2fcedf81052144744587"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicNotificationsTest",
+        "tests": 9,
+        "xmlSha256": "c692a4e0acb0da305a865a1a023838a334f792eb6462fb76f2648ba5bd152402"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicPolicyTest",
+        "tests": 18,
+        "xmlSha256": "b41a3d47e59dde5e36e943e4d4a72558143943aa964359d3f38634df0da12baa"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicProfileLinkTest",
+        "tests": 7,
+        "xmlSha256": "e4302ba886c33948c6ca661b62cfd1a4fe16fad39350d47f991a068308cd7855"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicSelectionTest",
+        "tests": 12,
+        "xmlSha256": "36ecc9da07a90d9ef1530b9efd24cd2ce5fa5615dec0c0f454e26083c8cdb17d"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.MessageTopicsTest",
+        "tests": 9,
+        "xmlSha256": "15d832f983b6ca490d95d7f0ee6b31c503e0fa5d296a43b5227382f6ece8ca46"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumChatPreviewStoreTest",
+        "tests": 14,
+        "xmlSha256": "22fbc56c9a0003ff53add79ab0fa679f05db3ecb405840065a1592767a90e971"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumHistoryTest",
+        "tests": 33,
+        "xmlSha256": "f317a760bb012ddce5f45d41165afeefcc16716b559225b8412d2ec400e9d9e6"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumNavigationTest",
+        "tests": 37,
+        "xmlSha256": "486ff90b1394adb916d5aa84fd4d78a23c349fe9e45a932d0f8dd08b240c2109"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsNavigationTest",
+        "tests": 15,
+        "xmlSha256": "d7e436ceaa7cdfc17befc33f4f243f013cf33ea33ae8cb5e48550c260def5567"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsStateMruTest",
+        "tests": 9,
+        "xmlSha256": "3767527a471e66f2b1ec8e9754e7074b66f9ff41d252ce360a540da976f34600"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicActionsTest",
+        "tests": 13,
+        "xmlSha256": "30ddd143f707591f0e347106030cefced8ff5a42b7b53f1cb86958c569074541"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicBatchTest",
+        "tests": 14,
+        "xmlSha256": "ed484e291b4504d6042f73873f70c8d058fbf50298f29567dfe7727b809d5423"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicMutationReconciliationTest",
+        "tests": 6,
+        "xmlSha256": "cfc8f4188f891b1e845f259d2461d39592197de486525e3805e5d0a8f72b33c6"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStoreTest",
+        "tests": 63,
+        "xmlSha256": "43c1fbad9ad5b167e1431ff51754c5fb0e207ab8ebb8d6404bbaf36a93f2d686"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStressTest",
+        "tests": 6,
+        "xmlSha256": "493fa8ca45a063bbcd5d59f3429c96d9ce0f763837d5f665bb33b68c4ba21e97"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicUpdatesTest",
+        "tests": 3,
+        "xmlSha256": "6651bcd9ed0cfad393f814af8d657b75e633a5d0b306d222c75d53d8f714213d"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUnreadCounterTest",
+        "tests": 27,
+        "xmlSha256": "7d20b1c41a441bf67a2d9302e1f158f932f61174ffff149ef7c2fa030a6e1d62"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUpstreamMigrationCheck",
+        "tests": 4,
+        "xmlSha256": "3f8fb83b842c2f96d485a183bf8001c4fdf328ef11d53f4fa9a58c1f21e6dbb9"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewDraftInterestTest",
+        "tests": 4,
+        "xmlSha256": "a80e55b24ddb57aa3704e3a58e9966c3783c37ab11791265405ad6c972923d6c"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewLifecycleTest",
+        "tests": 5,
+        "xmlSha256": "83c0218c8872851cbc701516c4997cd470b911f0b271c64be131335dd1c29fb4"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTabsNavigationTest",
+        "tests": 20,
+        "xmlSha256": "067665eba7ce2516d1f8cbec1bf3bbe1da2a8d97465b22a1447f5868d254703f"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTopicActionPresentationTest",
+        "tests": 21,
+        "xmlSha256": "4effbc7d3bee9d47b2e065e62a7610dce802b64ba5590d71c1a53bacca8fcb99"
+      },
+      {
+        "name": "org.thunderdog.challegram.unsorted.ScrollStateKeyTest",
+        "tests": 7,
+        "xmlSha256": "d6ea48b3bb68d61018b813b99d0918dfe99e8cd877cda1692742097443671af5"
+      },
+      {
+        "name": "org.thunderdog.challegram.widget.ForumTopicsTabsLayoutTest",
+        "tests": 16,
+        "xmlSha256": "016b957966c6b185f946732daaeff6f319925d3bb4dfb6f5fd3072ce6b84e9e0"
+      }
+    ]
+  },
+  {
+    "mode": "LegacyTests",
+    "task": "testLegacyDebugUnitTest",
+    "commit": "48c9c2fbeacaa183b8a02e68214d1fbd54f14ff0",
+    "totals": {
+      "tests": 548,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suiteCount": 39,
+    "scope": "Existing exact-Validation JVM evidence; not a new clean/stock TDLib or packaged-check run.",
+    "suites": [
+      {
+        "name": "org.thunderdog.challegram.charts.SegmentTreeTest",
+        "tests": 1,
+        "xmlSha256": "98430aae4cc105e7c539fd7c42664a89ff8660c106a8e967f7f01ac29c134f4f"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.ForumTopicListDiffTest",
+        "tests": 6,
+        "xmlSha256": "f8055c13e892a1ad8125ac650f2fb8e951a3f5f876a2d470d804dd187d3cb6c9"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.InputSendContextTest",
+        "tests": 8,
+        "xmlSha256": "ce43aa4fb8ed9f1fb37accb0dfd4d424adcfa8c5d40f10a5bf595a03f301c3bd"
+      },
+      {
+        "name": "org.thunderdog.challegram.component.chat.TopicAnchorTest",
+        "tests": 1,
+        "xmlSha256": "90928c15862aac47aa384a76903d202a34c0f0cd7f328441c697ee010c4cb748"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumChatPreviewTest",
+        "tests": 14,
+        "xmlSha256": "16196681ef857b35d70f0aba13d47754cdd50570906f27f8e9838e7e6a9961f1"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumDraftCodecTest",
+        "tests": 11,
+        "xmlSha256": "7251999b62ba41f0a30c36d54fde8374539c9de256698c31f1c6633a07daf81e"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumMessageLayoutTest",
+        "tests": 26,
+        "xmlSha256": "9f2638450c521220eb043538291b828daf1f785006acbc444b45e4322b7c9696"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumNotificationReadScopeTest",
+        "tests": 20,
+        "xmlSha256": "ae1ebafb7bd1feeeb9437051038315db1b8b7d1ea53a6b68da773a488c1d7ead"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumPresentationTest",
+        "tests": 29,
+        "xmlSha256": "85342d7df279c021a85ffc63e310b28699e72fc3dc3d91db00a95a062d802778"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailLayoutTest",
+        "tests": 10,
+        "xmlSha256": "efd9ab90bc1da1c83111a33a0fc7124024eb07e06b7c80baf591dde3c4e19931"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumRailScrollTest",
+        "tests": 4,
+        "xmlSha256": "03749fe76abe037ae1d5f44f2b3ff50106b8aa4b00f7e95afadd91396e51cb28"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTabsStateTest",
+        "tests": 12,
+        "xmlSha256": "c46eb694269106e2248e7214e1451749a96b629c45367227808fc444af93c2c4"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicAvailabilityTest",
+        "tests": 4,
+        "xmlSha256": "91bc2ef4b7a6f79fa3e158055a78d10831907870d594e34c0153da6f25faaafe"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicEditorStateTest",
+        "tests": 19,
+        "xmlSha256": "f63b457fa60d71d1c6122d6a3914a4811ba570ba73557da95729848b72ecc2fd"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicMediaTest",
+        "tests": 11,
+        "xmlSha256": "d0363b4a199c0ed84e2f70685710752bfe3a8a105455ecf36c2b3c9d5e692ee1"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicNotificationsTest",
+        "tests": 9,
+        "xmlSha256": "4a5471c9958d132fd130d42b8737cb3cde94b4feab93b76b4bf7b656c727f8b1"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicPolicyTest",
+        "tests": 18,
+        "xmlSha256": "e239a918f915b010b45cd381f12a737b751863df307017ccdae0b96ad73571d1"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicProfileLinkTest",
+        "tests": 7,
+        "xmlSha256": "e0da74605a125e2eb714a6f7dc977fbcf9aec99385941b8e963d56ab60fa5861"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.ForumTopicSelectionTest",
+        "tests": 12,
+        "xmlSha256": "fcf0ac9b77d59a406dc4da894b9f9f67a53a556be79083440fe0226ec7b0e58d"
+      },
+      {
+        "name": "org.thunderdog.challegram.data.MessageTopicsTest",
+        "tests": 9,
+        "xmlSha256": "419b7219fb2da1c7a888bd65e2eae7e87bdb9a3ae601aa63c0ee1bace89dabbf"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumChatPreviewStoreTest",
+        "tests": 14,
+        "xmlSha256": "f9ba4bf7e5c5116e208e01764e9cc0c1e3dc11026a1e3663df1eed698a5e1ae3"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumHistoryTest",
+        "tests": 33,
+        "xmlSha256": "eec4cf2cd2b7b321c4c66d55e196c83768e317545f5217fbe566511381126e38"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumNavigationTest",
+        "tests": 37,
+        "xmlSha256": "f565ba7890da77d350f8a4c41ffeabfc38aee12c0fc41c2ee72fae2daec76dd8"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsNavigationTest",
+        "tests": 15,
+        "xmlSha256": "1edd6290b395faa7575251a2d7c798d94f1a7510cabb914f630a1497da9f6a37"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTabsStateMruTest",
+        "tests": 9,
+        "xmlSha256": "1125f0dfb47236b5e4c7662d632be9dbbb78ffa739b497228466b2aecd9a0214"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicActionsTest",
+        "tests": 13,
+        "xmlSha256": "4c4a228ef54a2077a0352748ef9379e3ed6b70af1cfc9c80597cdfee20da491b"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicBatchTest",
+        "tests": 14,
+        "xmlSha256": "a33101061b94dc46f1c41a0dfa68dc2d6f372c71ad6d64e9c0adbafbd7858514"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicMutationReconciliationTest",
+        "tests": 6,
+        "xmlSha256": "07cc3336bcf8875e0fcc351a40871f78b23aad4c4e14f7ebb5aa215184a0e1e6"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStoreTest",
+        "tests": 63,
+        "xmlSha256": "cfa11b73fc100d05fbc3f072b9d7b48d516c94a9c66e644bd507d6d96ee01ac1"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicStressTest",
+        "tests": 6,
+        "xmlSha256": "c572d250dc073fc25168ac5bd6a75a91ae2a30fdc089357a7ef29440001cad40"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumTopicUpdatesTest",
+        "tests": 3,
+        "xmlSha256": "13b17c73b6999841691a906513fa2fbb5a39c6891c80fa1da7a88878c1db3502"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUnreadCounterTest",
+        "tests": 27,
+        "xmlSha256": "63850201a342556939c722310bebe60709ffe3ad33ecf59219dd5d57eec4aeeb"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.ForumUpstreamMigrationCheck",
+        "tests": 4,
+        "xmlSha256": "cbfdf56c4a6d1c3923fd18fe0e9c18b9f8fd10195fa11fd5dbec6cb532ee82b3"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewDraftInterestTest",
+        "tests": 4,
+        "xmlSha256": "c0fbbe6d8c562deae6199d9bcbfa21288a7a392e56d1de14d41bc8293f1a694c"
+      },
+      {
+        "name": "org.thunderdog.challegram.telegram.P801PreviewLifecycleTest",
+        "tests": 5,
+        "xmlSha256": "e969aeeb8009806f350d039934624df0643b5c53a11add9213275fd874548a97"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTabsNavigationTest",
+        "tests": 20,
+        "xmlSha256": "a0cda24c6197132a13973b1c84ffbfe4e866ba208d37319a10aaf2c1f266de6f"
+      },
+      {
+        "name": "org.thunderdog.challegram.ui.ForumTopicActionPresentationTest",
+        "tests": 21,
+        "xmlSha256": "a2f7ff1224ea860ebdae6a490f9f6a0e5c928a7e8a83e8d27d2a6a1ce2a82659"
+      },
+      {
+        "name": "org.thunderdog.challegram.unsorted.ScrollStateKeyTest",
+        "tests": 7,
+        "xmlSha256": "208b8f5eb0b085c108bf954a6713dcadb9afe0485974c52504f11ec008fa6d00"
+      },
+      {
+        "name": "org.thunderdog.challegram.widget.ForumTopicsTabsLayoutTest",
+        "tests": 16,
+        "xmlSha256": "17affaf6d77642c567a6b37c28db1f06bdb177f9f1b27432a1e312c82dbddef8"
+      }
+    ]
+  }
+]

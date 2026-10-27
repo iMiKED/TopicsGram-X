@@ -1,0 +1,60 @@
+{
+  "upstream": "9aea5c14351165d99b8ef901e946e8bab99c079c",
+  "clean": "361a0adaafa48153dfe52fab3f05097685d2cb03",
+  "validation": "48c9c2fbeacaa183b8a02e68214d1fbd54f14ff0",
+  "branch": "checks/upstream/forum-topics-clean",
+  "dependency": {
+    "url": "https://github.com/tdlib/td/pull/3766",
+    "stateAtPreparation": "OPEN",
+    "head": "e431324dea8684149b0f5b244db70567e9cb53f3",
+    "validationBundle": "0b4f1e7622dd18560f9c3581ca9833dc6e9a4adb",
+    "validationSource": "1bd4f7e776e1bb35db261a9948d8d9e3c67593fa",
+    "exactPublicTdlibHeadDeviceRun": false
+  },
+  "policy": {
+    "draftOnly": true,
+    "readyForReview": false,
+    "publicationAuthorized": false
+  },
+  "historicalMedia": true,
+  "automatedBeforeAfter": "NOT_RUN",
+  "deviceSmoke": {
+    "candidate": "48c9c2fbeacaa183b8a02e68214d1fbd54f14ff0",
+    "date": "2026-10-27",
+    "matrix": [
+      {
+        "device": "Pixel 6",
+        "api": 37,
+        "flavor": "latest",
+        "modes": [
+          "Debug",
+          "Release"
+        ]
+      },
+      {
+        "device": "Mi A2",
+        "api": 29,
+        "flavor": "lollipop",
+        "modes": [
+          "Debug",
+          "Release"
+        ]
+      },
+      {
+        "device": "NO1",
+        "api": 17,
+        "flavor": "legacy",
+        "modes": [
+          "Debug",
+          "Release"
+        ]
+      }
+    ],
+    "scope": "Bounded topic list/history/profile/editor-cancel/Back and selector placement checks. No new push, destructive actions or performance measurement.",
+    "caveats": [
+      "Mi A2 tests the lollipop APK on API29, not API21.",
+      "NO1 temporary load failure was attributed to missing connectivity by the author.",
+      "Some early Mi A2 profile captures lacked header controls; settled repeats showed them. No transition latency was measured."
+    ]
+  }
+}
