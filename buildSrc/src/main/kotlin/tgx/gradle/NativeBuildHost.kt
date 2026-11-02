@@ -54,6 +54,12 @@ class NativeBuildHost(
 /** Forward slashes work with Windows NDK tools as well as MSYS2 configure scripts. */
 fun File.nativePath(): String = absolutePath.replace('\\', '/')
 
+/** MSYS2 path conversion must not interpret ABI task names as bracket expressions. */
+fun nativeSourceCopyDirectory(taskTemporaryDir: File): File =
+  taskTemporaryDir.parentFile.resolve(
+    taskTemporaryDir.name.replace('[', '_').replace(']', '_').replace(',', '_')
+  ).resolve("source")
+
 /** Applied only to generated copies: never rewrite a third-party checkout. */
 fun normalizeNativeScript(file: File) {
   if (file.name == "configure" || file.name.startsWith("Makefile") ||

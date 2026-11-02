@@ -10,6 +10,7 @@ import org.gradle.process.ExecOperations
 import tgx.gradle.fatal
 import tgx.gradle.NativeBuildHost
 import tgx.gradle.normalizeNativeScript
+import tgx.gradle.nativeSourceCopyDirectory
 import java.io.FileOutputStream
 import java.io.File
 import javax.inject.Inject
@@ -58,7 +59,7 @@ abstract class BuildNativeLibraryTask : DefaultTask() {
 
   protected fun prepareInput(input: File): File {
     if (!isWindowsHost()) return input
-    val prepared = temporaryDir.resolve("source")
+    val prepared = nativeSourceCopyDirectory(temporaryDir)
     fs.sync {
       from(input) { exclude(".git", "**/.git", "**/.git/**", ".github/**") }
       into(prepared)

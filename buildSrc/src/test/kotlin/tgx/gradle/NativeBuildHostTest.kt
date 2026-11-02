@@ -21,6 +21,36 @@ class NativeBuildHostTest {
   }
 
   @Test
+  fun abiSplitTaskSourcePathsAvoidShellBracketExpressions() {
+    val root = temporary.newFolder("task-inputs")
+    val source = nativeSourceCopyDirectory(root.resolve("buildLibvpx[latest,arm64-v8a]"))
+    assertEquals(root.resolve("buildLibvpx_latest_arm64-v8a_/source"), source)
+    assertFalse(source.path.contains('['))
+    assertFalse(source.path.contains(']'))
+    assertNotEquals(source, nativeSourceCopyDirectory(root.resolve("buildLibvpx[legacy,armeabi-v7a]")))
+    assertEquals(root.resolve("buildLibvpxLatestArm64/source"),
+      nativeSourceCopyDirectory(root.resolve("buildLibvpxLatestArm64")))
+  }
+
+  @Test
+  fun sanitizedAbiSourcePathIsConvertedForWindowsClang() {
+    assumeTrue(System.getProperty("os.name").startsWith("Windows", ignoreCase = true))
+    assumeTrue(!System.getenv("TGX_MSYS2_ROOT").isNullOrBlank())
+    val clang = System.getenv("TGX_TEST_NDK_CLANG")
+    assumeTrue(!clang.isNullOrBlank())
+    val source = nativeSourceCopyDirectory(temporary.root.resolve("buildLibvpx[latest,arm64-v8a]"))
+    check(source.mkdirs())
+    val input = source.resolve("probe.c").apply { writeText("int probe(void) { return 0; }\n") }
+    val script = temporary.newFile("convert-path.sh")
+    script.writeText("#!/bin/sh\nexec \"\$1\" \"\$(cygpath -u \"\$2\")\" -fsyntax-only\n")
+    val host = NativeBuildHost()
+    val process = ProcessBuilder(host.commandLine(listOf(script.nativePath(), clang!!, input.nativePath())))
+      .redirectErrorStream(true).apply { environment().putAll(host.commandEnvironment()) }.start()
+    val output = process.inputStream.bufferedReader().readText()
+    assertEquals(output, 0, process.waitFor())
+  }
+
+  @Test
   fun unixCommandsAreUnchanged() {
     val arguments = listOf("make", "-j2", "install")
     assertEquals(arguments, NativeBuildHost(false, emptyMap()).commandLine(arguments))
