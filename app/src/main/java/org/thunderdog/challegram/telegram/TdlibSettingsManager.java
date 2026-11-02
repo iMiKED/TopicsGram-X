@@ -15,7 +15,9 @@
 package org.thunderdog.challegram.telegram;
 
 import android.content.SharedPreferences;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import android.os.Bundle;
+// endregion
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,10 +30,12 @@ import org.thunderdog.challegram.Log;
 import org.thunderdog.challegram.U;
 import org.thunderdog.challegram.config.Config;
 import org.thunderdog.challegram.core.Lang;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import org.thunderdog.challegram.data.ForumDraftCodec;
 import org.thunderdog.challegram.data.ForumArticleDrafts;
 import org.thunderdog.challegram.data.article.ArticleDocument;
 import org.thunderdog.challegram.data.ForumTabsState;
+// endregion
 import org.thunderdog.challegram.theme.ChatStyle;
 import org.thunderdog.challegram.theme.TGBackground;
 import org.thunderdog.challegram.theme.Theme;
@@ -41,9 +45,11 @@ import org.thunderdog.challegram.unsorted.Settings;
 import org.thunderdog.challegram.util.DeviceTokenType;
 
 import java.util.Arrays;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
+// endregion
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -77,6 +83,7 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
 
   private static final String DISMISS_MESSAGE_PREFIX = "dismiss_pinned_";
   private static final String DISMISS_REQUESTS_PREFIX = "dismiss_requests_";
+  // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
   private static final String FORUM_DRAFT_PREFIX = "forum_draft_";
   private static final String FORUM_TABS_STATE_PREFIX = "forum_tabs_state_";
   private static final String FORUM_TABS_MRU_KEY = "forum_tabs_mru";
@@ -120,7 +127,11 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   }
 
   /** Rejects stale hosts before touching storage, including the MRU index. */
-  public synchronized boolean putForumTabsState (long chatId, @NonNull ForumTabsState state, long expectedEpoch) {
+  public synchronized boolean putForumTabsState (
+    long chatId,
+    @NonNull ForumTabsState state,
+    long expectedEpoch
+  ) {
     if (expectedEpoch != forumTabsStateEpoch) {
       return false;
     }
@@ -160,7 +171,10 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
 
   public static final class LocalForumDraft {
     @Nullable public final TdApi.DraftMessage draft;
-    private LocalForumDraft (@Nullable TdApi.DraftMessage draft) { this.draft = draft; }
+
+    private LocalForumDraft (@Nullable TdApi.DraftMessage draft) {
+      this.draft = draft;
+    }
   }
 
   private String forumDraftKey (long chatId, int topicId) {
@@ -171,17 +185,25 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   @Nullable
   public synchronized LocalForumDraft getLocalForumDraft (long chatId, int topicId) {
     byte[] bytes = Settings.instance().pmc().getByteArray(forumDraftKey(chatId, topicId));
-    if (bytes == null) return null;
+    if (bytes == null) {
+      return null;
+    }
     try {
       Bundle bundle = new Bundle();
       Map<String, Object> fields = ForumDraftCodec.decode(bytes);
       for (Map.Entry<String, Object> field : fields.entrySet()) {
         Object value = field.getValue();
-        if (value == null || value instanceof String) bundle.putString(field.getKey(), (String) value);
-        else if (value instanceof Integer) bundle.putInt(field.getKey(), (Integer) value);
-        else if (value instanceof Long) bundle.putLong(field.getKey(), (Long) value);
-        else if (value instanceof Boolean) bundle.putBoolean(field.getKey(), (Boolean) value);
-        else if (value instanceof byte[]) bundle.putByteArray(field.getKey(), (byte[]) value);
+        if (value == null || value instanceof String) {
+          bundle.putString(field.getKey(), (String) value);
+        } else if (value instanceof Integer) {
+          bundle.putInt(field.getKey(), (Integer) value);
+        } else if (value instanceof Long) {
+          bundle.putLong(field.getKey(), (Long) value);
+        } else if (value instanceof Boolean) {
+          bundle.putBoolean(field.getKey(), (Boolean) value);
+        } else if (value instanceof byte[]) {
+          bundle.putByteArray(field.getKey(), (byte[]) value);
+        }
       }
       TdApi.DraftMessageContent article = ForumArticleDrafts.restore(fields);
       if (article != null) return new LocalForumDraft(new TdApi.DraftMessage(
@@ -194,12 +216,20 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     }
   }
 
-  public synchronized byte[] putLocalForumDraft (long chatId, int topicId, @Nullable TdApi.DraftMessage draft) {
+  public synchronized byte[] putLocalForumDraft (
+    long chatId,
+    int topicId,
+    @Nullable TdApi.DraftMessage draft
+  ) {
     Bundle bundle = new Bundle();
     Td.put(bundle, "draft", draft);
     Map<String, Object> fields = new TreeMap<>();
-    for (String key : bundle.keySet()) fields.put(key, bundle.get(key));
-    if (draft != null) ForumArticleDrafts.put(fields, draft.content);
+    for (String key : bundle.keySet()) {
+      fields.put(key, bundle.get(key));
+    }
+    if (draft != null) {
+      ForumArticleDrafts.put(fields, draft.content);
+    }
     byte[] bytes = ForumDraftCodec.encode(fields);
     Settings.instance().pmc().putByteArray(forumDraftKey(chatId, topicId), bytes);
     return bytes;
@@ -213,6 +243,7 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
       Settings.instance().pmc().remove(key);
     }
   }
+  // endregion
 
   /** A completed send must never remove a newer local article or a text draft. */
   public synchronized void clearSentForumArticle (long chatId, int topicId, ArticleDocument sent) {
@@ -298,9 +329,11 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   public void onPerformRestart () { }
 
   @Override
+  // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
   public synchronized void onPerformUserCleanup () {
     // Invalidate existing hosts before deleting data, under the same lock as guarded writes.
     forumTabsStateEpoch++;
+  // endregion
     Settings prefs = Settings.instance();
 
     SharedPreferences.Editor editor = prefs.edit();
@@ -316,7 +349,9 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
     editor.remove(key(THEME_GLOBAL_THEME_NIGHT_KEY, accountId));
     editor.remove(key(THEME_GLOBAL_THEME_DAYLIGHT_KEY, accountId));
     editor.remove(key(LOCAL_CHAT_IDS_COUNT, accountId));
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     editor.remove(key(FORUM_TABS_MRU_KEY, accountId));
+    // endregion
     editor.remove(key(MAIN_CHAT_LIST_ENABLED, accountId));
     editor.remove(key(ARCHIVE_CHAT_LIST_ENABLED, accountId));
     editor.remove(key(ARCHIVE_CHAT_LIST_POSITION, accountId));
@@ -342,9 +377,11 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
       notificationDataPrefix,
       conversionPrefix,
       localChatIdPrefix,
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       remoteChatIdPrefix,
       key(FORUM_DRAFT_PREFIX, accountId),
       key(FORUM_TABS_STATE_PREFIX, accountId)
+      // endregion
     }, editor);
     editor.apply();
 
@@ -387,45 +424,64 @@ public class TdlibSettingsManager implements CleanupStartupDelegate {
   }
 
   public void dismissMessage (long chatId, long messageId) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     dismissMessage(chatId, null, messageId);
   }
 
   private String dismissedMessageKey (long chatId, @Nullable TdApi.MessageTopic topicId) {
-    return key(DISMISS_MESSAGE_PREFIX, tdlib.id()) + chatId + (topicId instanceof TdApi.MessageTopicForum ? "_forum_" + ((TdApi.MessageTopicForum) topicId).forumTopicId : "");
+    return key(
+      DISMISS_MESSAGE_PREFIX,
+      tdlib.id()
+    ) + chatId + (topicId instanceof TdApi.MessageTopicForum
+      ? "_forum_" + ((TdApi.MessageTopicForum) topicId).forumTopicId : "");
   }
 
   public void dismissMessage (long chatId, @Nullable TdApi.MessageTopic topicId, long messageId) {
     Settings.instance().putLong(dismissedMessageKey(chatId, topicId), messageId);
+    // endregion
     for (DismissMessageListener listener : dismissMessageListeners) {
       listener.onPinnedMessageDismissed(chatId, messageId);
     }
   }
 
   public void restorePinnedMessages (long chatId) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     restorePinnedMessages(chatId, null);
   }
 
   public void restorePinnedMessages (long chatId, @Nullable TdApi.MessageTopic topicId) {
     Settings.instance().remove(dismissedMessageKey(chatId, topicId));
+    // endregion
     for (DismissMessageListener listener : dismissMessageListeners) {
       listener.onPinnedMessageRestored(chatId);
     }
   }
 
   public boolean isMessageDismissed (long chatId, long messageId) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     return isMessageDismissed(chatId, null, messageId);
   }
 
-  public boolean isMessageDismissed (long chatId, @Nullable TdApi.MessageTopic topicId, long messageId) {
-    return messageId != 0 && Settings.instance().getLong(dismissedMessageKey(chatId, topicId), 0) >= messageId;
+  public boolean isMessageDismissed (
+    long chatId,
+    @Nullable TdApi.MessageTopic topicId,
+    long messageId
+  ) {
+    return messageId != 0 && Settings.instance().getLong(
+      dismissedMessageKey(chatId, topicId),
+      0
+    ) >= messageId;
+    // endregion
   }
 
   public boolean hasDismissedMessages (long chatId) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     return hasDismissedMessages(chatId, null);
   }
 
   public boolean hasDismissedMessages (long chatId, @Nullable TdApi.MessageTopic topicId) {
     return Settings.instance().getLong(dismissedMessageKey(chatId, topicId), 0) > 0;
+    // endregion
   }
 
   // Dismiss join requests

@@ -19,9 +19,11 @@ import androidx.annotation.Nullable;
 
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.data.TD;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import org.thunderdog.challegram.data.ForumHistory;
 import org.thunderdog.challegram.data.ForumNavigation;
 import org.thunderdog.challegram.data.ForumNotificationReadScope;
+// endregion
 import org.thunderdog.challegram.unsorted.Settings;
 
 import java.util.ArrayList;
@@ -106,8 +108,11 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
 
   @Nullable
   public TdApi.MessageTopic getMessageTopicId () {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     TdlibNotification last = lastNotification();
-    TdApi.MessageTopic topic = last != null ? ForumNavigation.notificationTopic(last.getNotificationContent()) : null;
+    TdApi.MessageTopic topic = last != null ? ForumNavigation.notificationTopic(
+      last.getNotificationContent()
+    ) : null;
     return ForumHistory.isForum(topic) ? topic : null;
   }
 
@@ -119,6 +124,7 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
       content.add(notification.getNotificationContent());
     }
     return ForumNotificationReadScope.topicIds(totalCount, content);
+    // endregion
   }
 
   public boolean isSelfChat () {
@@ -136,11 +142,13 @@ public class TdlibNotificationGroup implements Iterable<TdlibNotification> {
   }
 
   public long findTargetMessageId () {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     // Notification groups can contain several topics. Open/reply to the same (latest) message.
     if (tdlib.isForum(chatId)) {
       TdlibNotification last = lastNotification();
       return last != null ? last.findMessageId() : 0;
     }
+    // endregion
     if (!isMention())
       return 0;
     for (TdlibNotification notification : this) {

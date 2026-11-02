@@ -16,7 +16,9 @@ package org.thunderdog.challegram.ui;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import android.graphics.Rect;
+// endregion
 import android.util.SparseIntArray;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,7 +36,9 @@ import org.thunderdog.challegram.R;
 import org.thunderdog.challegram.component.MediaCollectorDelegate;
 import org.thunderdog.challegram.core.Lang;
 import org.thunderdog.challegram.data.InlineResult;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import org.thunderdog.challegram.data.ForumTopicMedia;
+// endregion
 import org.thunderdog.challegram.data.TD;
 import org.thunderdog.challegram.mediaview.MediaViewController;
 import org.thunderdog.challegram.mediaview.MediaViewDelegate;
@@ -67,11 +71,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+// endregion
 import java.util.List;
 import java.util.Map;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 import java.util.Set;
+// endregion
 import java.util.concurrent.TimeUnit;
 
 import me.vkryl.android.animator.FactorAnimator;
@@ -120,7 +128,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       case TdApi.SearchMessagesFilterAudio.CONSTRUCTOR:
       case TdApi.SearchMessagesFilterDocument.CONSTRUCTOR:
       case TdApi.SearchMessagesFilterVoiceNote.CONSTRUCTOR:
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       case TdApi.SearchMessagesFilterPoll.CONSTRUCTOR:
+      // endregion
         return new SharedCommonController(context, tdlib).setFilter(filter);
     }
     throw new IllegalArgumentException("unsupported filter: " + filter);
@@ -131,26 +141,50 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
 
   @Override
   public void setArguments (Args args) {
-    boolean changed = chatId != args.chatId || !Td.matchesTopic(topicId, args.topicId) || !Td.matchesTopic(args.topicId, topicId);
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+    boolean changed = chatId != args.chatId || !Td.matchesTopic(
+      topicId,
+      args.topicId
+    ) || !Td.matchesTopic(args.topicId, topicId);
     if (changed) {
       ++requestEpoch;
-      if (alternateParent != null || independentUpdates) tdlib.listeners().unsubscribeFromMessageUpdates(chatId, this);
+      if (alternateParent != null || independentUpdates) {
+        tdlib.listeners().unsubscribeFromMessageUpdates(chatId, this);
+      }
     }
+    // endregion
     super.setArguments(args);
     chatId = args.chatId;
     topicId = args.topicId;
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (changed) {
-      if (alternateParent != null || independentUpdates) tdlib.listeners().subscribeToMessageUpdates(chatId, this);
+      if (alternateParent != null || independentUpdates) {
+        tdlib.listeners().subscribeToMessageUpdates(chatId, this);
+      }
       if (recyclerView != null) {
-        if (searchTask != null) searchTask.cancel();
-        isLoading = false; currentQuery = null; loadError = null; data = searchData = null;
-        dataCursor = searchCursor = 0; initialLiveMessages.clear(); deletedDuringLoad.clear();
-        setInMediaSelectMode(false); onScopeChanged(); buildCells(); loadInitialChunk();
+        if (searchTask != null) {
+          searchTask.cancel();
+        }
+        isLoading = false;
+        currentQuery = null;
+        loadError = null;
+        data = searchData = null;
+        dataCursor = searchCursor = 0;
+        initialLiveMessages.clear();
+        deletedDuringLoad.clear();
+        setInMediaSelectMode(false);
+        onScopeChanged();
+        buildCells();
+        loadInitialChunk();
       }
     }
+    // endregion
   }
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 
-  protected void onScopeChanged () { }
+  protected void onScopeChanged () {
+  }
+// endregion
 
   private boolean isPrepared;
 
@@ -169,6 +203,7 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
 
   protected @Nullable ProfileController parent;
   protected @Nullable MessagesController alternateParent;
+  // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
   protected @Nullable ViewController<?> standaloneParent;
   private volatile int requestEpoch;
   private boolean independentUpdates;
@@ -182,7 +217,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   public void setStandaloneParent (@NonNull ViewController<?> host) {
     standaloneParent = host;
     setParentWrapper(host);
-    if (host.navigationController() != null) attachNavigationController(host.navigationController());
+    if (host.navigationController() != null) {
+      attachNavigationController(host.navigationController());
+    }
   }
 
   protected final boolean acceptsMessage (TdApi.Message message) {
@@ -190,10 +227,20 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   }
 
   protected final void openScopedMessage (TdApi.Message message) {
-    if (!acceptsMessage(message)) return;
-    tdlib.ui().openChat(standaloneParent != null ? standaloneParent : this, chatId,
-      new TdlibUi.ChatOpenParameters().messageTopic(topicId).highlightMessage(message).ensureHighlightAvailable().keepStack());
+    if (!acceptsMessage(message)) {
+      return;
+    }
+    tdlib.ui().openChat(
+      standaloneParent != null ? standaloneParent : this,
+      chatId,
+      new TdlibUi.ChatOpenParameters()
+        .messageTopic(topicId)
+        .highlightMessage(message)
+        .ensureHighlightAvailable()
+        .keepStack()
+    );
   }
+  // endregion
 
   protected MediaRecyclerView recyclerView;
   protected SettingsAdapter adapter;
@@ -223,10 +270,12 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   @SuppressLint("InflateParams")
   @Override
   protected final View onCreateView (Context context) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (standaloneParent != null) {
       tdlib.listeners().subscribeToMessageUpdates(chatId, this);
       independentUpdates = true;
     }
+    // endregion
     messageViewport = tdlib.messageViewer().createViewport(new TdApi.MessageSourceSearch(), this);
     recyclerView = (MediaRecyclerView) Views.inflate(context(), R.layout.recycler_sharedmedia, null);
     recyclerView.setOverScrollMode(RecyclerView.OVER_SCROLL_NEVER);
@@ -239,9 +288,16 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     recyclerView.setHasFixedSize(true);
     recyclerView.setLayoutParams(FrameLayoutFix.newParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     recyclerView.setItemAnimator(null); // new CustomItemAnimator(Anim.DECELERATE_INTERPOLATOR, 180l));
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     // Merely opening a topic profile must not advance the topic's read position.
-    if (standaloneParent == null) tdlib.ui().attachViewportToRecyclerView(messageViewport, recyclerView);
-    adapter = new SettingsAdapter(this, needsDefaultOnClick() || standaloneParent != null ? this : null, this) {
+    if (standaloneParent == null) {
+      tdlib.ui().attachViewportToRecyclerView(messageViewport, recyclerView);
+    }
+    adapter = new SettingsAdapter(
+      this,
+      needsDefaultOnClick() || standaloneParent != null ? this : null,
+      this
+    ) {
       @Override public void onBindViewHolder (SettingHolder holder, int position) {
         super.onBindViewHolder(holder, position);
         Object data = getItems().get(position).getData();
@@ -249,16 +305,29 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
           TdApi.Message message = ((MessageSourceProvider) data).getMessage();
           if (message != null && message.content instanceof TdApi.MessagePoll) {
             TdApi.Poll poll = ((TdApi.MessagePoll) message.content).poll;
-            holder.itemView.setContentDescription(poll.question.text + ". " + Lang.getString(poll.isClosed ? R.string.ForumProfilePollClosed : R.string.ForumProfilePollOpen) +
-              ". " + Lang.getString(R.string.ForumProfilePollVoters, poll.totalVoterCount));
+            // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "L10N-01")
+            holder.itemView.setContentDescription(
+              Lang.getString(
+                R.string.format_forumPollAccessibility,
+                poll.question.text,
+                Lang.getString(
+                  poll.isClosed ? R.string.ForumProfilePollClosed : R.string.ForumProfilePollOpen
+                ),
+                Lang.getString(R.string.ForumProfilePollVoters, poll.totalVoterCount)
+              )
+            );
+            // endregion
           }
         }
       }
+    // endregion
       @Override
       protected void setInfo (ListItem item, int position, ListInfoView infoView) {
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         if (loadError != null) {
           infoView.showInfo(Lang.getString(R.string.ForumProfileMediaRetry));
         } else if (isLoading || canLoadMore()) {
+        // endregion
           infoView.showProgress();
         } else {
           infoView.showInfo(buildTotalCount(isSearching() ? searchData : data));
@@ -541,12 +610,21 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   }
 
   private void loadMoreIfNeeded () {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (canLoadMore() && !isLoading && loadError == null) {
+    // endregion
       LinearLayoutManager manager = (LinearLayoutManager) recyclerView.getLayoutManager();
       int lastVisibleItemPosition = manager.findLastVisibleItemPosition();
       if (lastVisibleItemPosition != -1 && lastVisibleItemPosition + 6 >= adapter.getItems().size()) {
-        long offsetMessageId = standaloneParent != null ? (isSearching() ? searchCursor : dataCursor) : getCurrentOffset(-1);
-        if (standaloneParent != null && offsetMessageId == 0) return;
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+        long offsetMessageId =
+          standaloneParent != null ? (isSearching() ? searchCursor : dataCursor) : getCurrentOffset(
+          -1
+        );
+        if (standaloneParent != null && offsetMessageId == 0) {
+          return;
+        }
+        // endregion
         if (offsetMessageId != -1) {
           int loadCount = 40;
           int columnCount = getLoadColumnCount();
@@ -607,25 +685,37 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     if (function == null) {
       return;
     }
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     final int epoch = requestEpoch;
     final int serial = ++requestSerial;
     tdlib.client().send(function, object -> {
-      if (!isDestroyed() && epoch == requestEpoch) processData(query, offset, object, limit, epoch);
-    });
-    if (standaloneParent != null) tdlib.ui().postDelayed(() -> {
-      if (!isDestroyed() && epoch == requestEpoch && serial == requestSerial && isLoading) {
-        ++requestEpoch; isLoading = false;
-        loadError = new TdApi.Error(408, "Shared media request timed out"); buildCells();
+      if (!isDestroyed() && epoch == requestEpoch) {
+        processData(query, offset, object, limit, epoch);
       }
-    }, 15000);
+    });
+    if (standaloneParent != null) {
+      tdlib.ui().postDelayed(() -> {
+        if (!isDestroyed() && epoch == requestEpoch && serial == requestSerial && isLoading) {
+          ++requestEpoch;
+          isLoading = false;
+          loadError = new TdApi.Error(408, "Shared media request timed out");
+          buildCells();
+        }
+      }, 15000);
+    }
+    // endregion
   }
 
   private void loadMessages (final String query, final long fromMessageId, final int limit) {
     if (!this.isLoading || !StringUtils.equalsOrBothEmpty(query, currentQuery)) {
       this.isLoading = true;
       boolean processingSearch = !StringUtils.equalsOrBothEmpty(query, currentQuery);
-      if (processingSearch) ++requestEpoch;
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+      if (processingSearch) {
+        ++requestEpoch;
+      }
       loadError = null;
+      // endregion
       this.currentQuery = query;
 
       if (searchTask != null) {
@@ -639,7 +729,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       }
 
       if (processingSearch) {
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         searchCursor = 0;
+        // endregion
         this.searchData = null;
         int scrollY = calculateScrollY();
         buildCells();
@@ -657,8 +749,10 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
           if (fromMessageId == 0) {
             baseHandler = null;
           }
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         } else if (data == null) {
           performRequest(chatId, topicId, query, 0, null, limit);
+        // endregion
         } else {
           isLoading = false;
         }
@@ -690,19 +784,29 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   }
 
   protected final void processData (final String query, final long offset, final TdApi.Object object, int limit) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     processData(query, offset, object, limit, requestEpoch);
   }
 
-  private void processData (final String query, final long offset, final TdApi.Object object, int limit, final int epoch) {
+  private void processData (
+    final String query,
+    final long offset,
+    final TdApi.Object object,
+    int limit,
+    final int epoch
+  ) {
     if (object instanceof TdApi.Error && standaloneParent != null) {
       tdlib.uiExecute(() -> {
-        if (isDestroyed() || epoch != requestEpoch) return;
+        if (isDestroyed() || epoch != requestEpoch) {
+          return;
+        }
         isLoading = false;
         loadError = (TdApi.Error) object;
         buildCells();
       });
       return;
     }
+    // endregion
     final ArrayList<T> items;
     String nextSearchOffset = null;
     long nextOffset = 0;
@@ -711,7 +815,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
         TdApi.FoundMessages messages = (TdApi.FoundMessages) object;
         items = new ArrayList<>(messages.messages.length);
         for (TdApi.Message message : messages.messages) {
+          // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
           if (!acceptsMessage(message)) {
+          // endregion
             continue;
           }
           nextOffset = message.id;
@@ -729,7 +835,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
         nextOffset = messages.nextFromMessageId;
         items = new ArrayList<>(messages.messages.length);
         for (TdApi.Message message : messages.messages) {
+          // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
           if (!acceptsMessage(message)) {
+          // endregion
             continue;
           }
           T parsedItem = parseObject(message);
@@ -744,7 +852,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
         TdApi.Messages messages = (TdApi.Messages) object;
         items = new ArrayList<>(messages.messages.length);
         for (TdApi.Message message : messages.messages) {
+          // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
           if (!acceptsMessage(message)) {
+          // endregion
             continue;
           }
           nextOffset = message.id;
@@ -820,27 +930,46 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     final long nextOffsetFinal = nextOffset;
     final String nextSearchOffsetFinal = nextSearchOffset;
     tdlib.uiExecute(() -> {
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       if (!isDestroyed() && epoch == requestEpoch) {
+      // endregion
         modifyResultIfNeeded(items, false);
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         if (standaloneParent != null && StringUtils.equalsOrBothEmpty(query, currentQuery)) {
           ArrayList<T> target = isSearching() ? searchData : data;
           Set<Long> existing = new HashSet<>();
-          if (offset != 0 && target != null) for (T item : target) existing.add(item.getSourceMessageId());
-          items.removeIf(item -> deletedDuringLoad.contains(item.getSourceMessageId()) || !existing.add(item.getSourceMessageId()));
+          if (offset != 0 && target != null) {
+            for (T item : target) {
+              existing.add(item.getSourceMessageId());
+            }
+          }
+          items.removeIf(
+            item -> deletedDuringLoad.contains(item.getSourceMessageId()) ||
+              !existing.add(item.getSourceMessageId())
+          );
           addItems(items, nextSearchOffsetFinal, offset == 0);
-          if (isSearching()) searchCursor = nextOffsetFinal; else dataCursor = nextOffsetFinal;
+          if (isSearching()) {
+            searchCursor = nextOffsetFinal;
+          } else {
+            dataCursor = nextOffsetFinal;
+          }
           setCanLoadMore(nextOffsetFinal != 0 && nextOffsetFinal != offset, true);
           deletedDuringLoad.clear();
           if (!isSearching() && !initialLiveMessages.isEmpty()) {
-            ArrayList<TdApi.Message> pending = new ArrayList<>(initialLiveMessages.values()); initialLiveMessages.clear();
-            for (TdApi.Message message : pending) addMessage(message);
+            ArrayList<TdApi.Message> pending = new ArrayList<>(initialLiveMessages.values());
+            initialLiveMessages.clear();
+            for (TdApi.Message message : pending) {
+              addMessage(message);
+            }
           }
           ArrayList<T> loaded = isSearching() ? searchData : data;
           if (loaded != null && loaded.isEmpty() && nextOffsetFinal != 0) {
-            loadError = new TdApi.Error(0, "Material availability is not known yet"); buildCells();
+            loadError = new TdApi.Error(0, "Material availability is not known yet");
+            buildCells();
           }
           return;
         }
+        // endregion
         long currentOffset = getCurrentOffset(0);
         if (currentOffset == offset && StringUtils.equalsOrBothEmpty(query, currentQuery)) {
           addItems(items, nextSearchOffsetFinal, offset == 0);
@@ -988,9 +1117,18 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     ArrayList<ListItem> items = new ArrayList<>();
     ArrayList<T> target = isSearching() ? searchData : data;
 
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (loadError != null && standaloneParent != null && (target == null || target.isEmpty())) {
-      items.add(new ListItem(ListItem.TYPE_SETTING, R.id.forum_profile_retry, 0, R.string.ForumProfileMediaRetry));
+      items.add(
+        new ListItem(
+          ListItem.TYPE_SETTING,
+          R.id.forum_profile_retry,
+          0,
+          R.string.ForumProfileMediaRetry
+        )
+      );
     } else if (isAlwaysEmpty() || (target != null && target.isEmpty())) {
+    // endregion
       if (adapter.getItems().size() == 1 && adapter.getItems().get(0).getViewType() == ListItem.TYPE_SMART_EMPTY) {
         return;
       }
@@ -1005,7 +1143,18 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     } else {
       // recyclerView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
       addItems(reuse, provideViewType(), target, 0, items, null, this, buildFlags());
-      if (loadError != null && standaloneParent != null) items.add(new ListItem(ListItem.TYPE_SETTING, R.id.forum_profile_retry, 0, R.string.ForumProfileMediaRetry));
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+      if (loadError != null && standaloneParent != null) {
+        items.add(
+          new ListItem(
+            ListItem.TYPE_SETTING,
+            R.id.forum_profile_retry,
+            0,
+            R.string.ForumProfileMediaRetry
+          )
+        );
+      }
+      // endregion
     }
     adapter.replaceItems(items);
     onItemsHeightProbablyChanged();
@@ -1036,12 +1185,21 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       Object tag = v.getTag();
       if (tag != null && tag instanceof ListItem) {
         ListItem item = (ListItem) tag;
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         if (standaloneParent != null && item.getData() instanceof MessageSourceProvider) {
           TdApi.Message message = ((MessageSourceProvider) item.getData()).getMessage();
-          standaloneParent.showOptions(null, new int[] {R.id.btn_showInChat}, new String[] {Lang.getString(R.string.ShowInChat)},
-            (view, id) -> { openScopedMessage(message); return true; });
+          standaloneParent.showOptions(
+            null,
+            new int[] {R.id.btn_showInChat},
+            new String[] {Lang.getString(R.string.ShowInChat)},
+            (view, id) -> {
+              openScopedMessage(message);
+              return true;
+            }
+          );
           return true;
         }
+        // endregion
         if (needsCustomLongClickListener()) {
           return onLongClick(v, item);
         } else {
@@ -1276,7 +1434,17 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   public void viewMessages () {
     MessageId messageId = getSingularMessageId();
     if (messageId != null) {
-      tdlib.ui().openChat(this, getChatId(), new TdlibUi.ChatOpenParameters().messageTopic(topicId).passcodeUnlocked().highlightMessage(messageId).ensureHighlightAvailable());
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+      tdlib.ui().openChat(
+        this,
+        getChatId(),
+        new TdlibUi.ChatOpenParameters()
+          .messageTopic(topicId)
+          .passcodeUnlocked()
+          .highlightMessage(messageId)
+          .ensureHighlightAvailable()
+      );
+      // endregion
     }
   }
 
@@ -1317,11 +1485,16 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       }
       i++;
     }
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     return standaloneParent != null && !canLoadMoreData ? data.size() : -1;
+    // endregion
   }
 
   public void addMessage (TdApi.Message message) {
-    if (!ProfileController.filterMediaMessage(message) || !acceptsMessage(message) || !supportsMessageContent()) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+    if (!ProfileController.filterMediaMessage(message) ||
+      !acceptsMessage(message) || !supportsMessageContent()) {
+    // endregion
       return;
     }
 
@@ -1332,10 +1505,14 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
     }
 
     if (data == null) {
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       if (standaloneParent != null) {
         initialLiveMessages.put(message.id, message);
-        if (initialLiveMessages.size() > 128) initialLiveMessages.remove(initialLiveMessages.keySet().iterator().next());
+        if (initialLiveMessages.size() > 128) {
+          initialLiveMessages.remove(initialLiveMessages.keySet().iterator().next());
+        }
       }
+      // endregion
       return;
     }
 
@@ -1436,14 +1613,28 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   }
 
   public final void removeMessages (long[] messageIds) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (standaloneParent != null && supportsMessageContent()) {
       Set<Long> ids = new HashSet<>();
-      for (long id : messageIds) { ids.add(id); initialLiveMessages.remove(id); if (isLoading) deletedDuringLoad.add(id); }
-      boolean changed = data != null && data.removeIf(item -> ids.contains(item.getSourceMessageId()));
-      changed |= searchData != null && searchData.removeIf(item -> ids.contains(item.getSourceMessageId()));
-      if (changed && adapter != null) buildCells();
+      for (long id : messageIds) {
+        ids.add(id);
+        initialLiveMessages.remove(id);
+        if (isLoading) {
+          deletedDuringLoad.add(id);
+        }
+      }
+      boolean changed = data != null && data.removeIf(
+        item -> ids.contains(item.getSourceMessageId())
+      );
+      changed |= searchData != null && searchData.removeIf(
+        item -> ids.contains(item.getSourceMessageId())
+      );
+      if (changed && adapter != null) {
+        buildCells();
+      }
       return;
     }
+    // endregion
     if (supportsMessageContent()) {
       for (long messageId : messageIds) {
         removeMessage(messageId);
@@ -1526,39 +1717,69 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       return;
     }
 
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     boolean changed = replaceContent(data, messageId, content);
     changed |= replaceContent(searchData, messageId, content);
-    if (changed && adapter != null) buildCells();
+    if (changed && adapter != null) {
+      buildCells();
+    }
   }
 
-  private boolean replaceContent (ArrayList<T> items, long messageId, TdApi.MessageContent content) {
-    if (items == null) return false;
+  private boolean replaceContent (
+    ArrayList<T> items,
+    long messageId,
+    TdApi.MessageContent content
+  ) {
+    if (items == null) {
+      return false;
+    }
     for (int i = items.size() - 1; i >= 0; i--) {
       TdApi.Message message = items.get(i).getMessage();
-      if (message == null || message.id != messageId || !acceptsMessage(message)) continue;
+      if (message == null || message.id != messageId || !acceptsMessage(message)) {
+        continue;
+      }
       message.content = content;
-      T replacement = Td.matchesFilter(message, provideSearchFilter()) ? parseObject(message) : null;
-      if (replacement == null) items.remove(i); else items.set(i, replacement);
+      T replacement = Td.matchesFilter(message, provideSearchFilter())
+        ? parseObject(message) : null;
+      if (replacement == null) {
+        items.remove(i);
+      } else {
+        items.set(i, replacement);
+      }
       return true;
+    // endregion
     }
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     return false;
   }
 
   protected final boolean retryLoad (View view) {
-    if (view.getId() != R.id.forum_profile_retry && (!(view.getTag() instanceof ListItem) || ((ListItem) view.getTag()).getId() != R.id.forum_profile_retry)) return false;
-    long offset = standaloneParent != null ? (isSearching() ? searchCursor : dataCursor) : getCurrentOffset(0);
+    if (view.getId() != R.id.forum_profile_retry && (!(view.getTag() instanceof ListItem) ||
+      ((ListItem) view.getTag()).getId() != R.id.forum_profile_retry)) {
+      return false;
+    }
+    long offset =
+      standaloneParent != null ? (isSearching() ? searchCursor : dataCursor) : getCurrentOffset(0);
     loadMessages(currentQuery, offset, calculateInitialLoadCount());
     buildCells();
     return true;
+    // endregion
   }
 
   @Override
   public void destroy () {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     ++requestEpoch;
-    if (searchTask != null) searchTask.cancel();
-    initialLiveMessages.clear(); deletedDuringLoad.clear();
+    if (searchTask != null) {
+      searchTask.cancel();
+    }
+    initialLiveMessages.clear();
+    deletedDuringLoad.clear();
+    // endregion
     super.destroy();
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (alternateParent != null || independentUpdates) {
+    // endregion
       tdlib.listeners().unsubscribeFromMessageUpdates(chatId, this);
     }
     if (messageViewport != null) {
@@ -1663,7 +1884,11 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   public final void onMessageSendSucceeded (final TdApi.Message message, final long oldMessageId) {
     tdlib.ui().post(() -> {
       if (!isDestroyed()) {
-        if (acceptsMessage(message)) removeMessages(new long[] {oldMessageId});
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+        if (acceptsMessage(message)) {
+          removeMessages(new long[] {oldMessageId});
+        }
+        // endregion
         addMessage(message);
       }
     });
@@ -1673,23 +1898,37 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   public final void onMessageContentChanged (final long chatId, final long messageId, final TdApi.MessageContent newContent) {
     tdlib.ui().post(() -> {
       if (!isDestroyed() && SharedBaseController.this.chatId == chatId) {
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         if (standaloneParent instanceof ForumTopicProfileController) {
           // One bounded hydrator belongs to the host, not one GetMessage per material tab.
           int index = indexOfMessage(messageId);
           if (index >= 0) {
             TdApi.Message cached = data.get(index).getMessage();
-            if (cached != null) ((ForumTopicProfileController) standaloneParent).onCachedContentChanged(cached, newContent);
+            if (cached != null) {
+              ((ForumTopicProfileController) standaloneParent).onCachedContentChanged(
+                cached,
+                newContent
+              );
+            }
           }
           editMessage(messageId, newContent);
           return;
         }
+        // endregion
         editMessage(messageId, newContent);
+        // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
         if (standaloneParent != null && indexOfMessage(messageId) == -1) {
           final int epoch = requestEpoch;
-          tdlib.send(new TdApi.GetMessage(chatId, messageId), (message, error) -> tdlib.ui().post(() -> {
-            if (!isDestroyed() && epoch == requestEpoch && error == null) addMessage(message);
-          }));
+          tdlib.send(
+            new TdApi.GetMessage(chatId, messageId),
+            (message, error) -> tdlib.ui().post(() -> {
+              if (!isDestroyed() && epoch == requestEpoch && error == null) {
+                addMessage(message);
+              }
+            })
+          );
         }
+        // endregion
       }
     });
   }
@@ -1721,7 +1960,9 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
 
   @Override
   public MediaStack collectMedias (long fromMessageId, boolean isSponsored, @Nullable TdApi.SearchMessagesFilter filter) {
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     ArrayList<T> data = isSearching() ? searchData : this.data;
+    // endregion
     if (data == null || data.isEmpty()) {
       return null;
     }
@@ -1760,8 +2001,10 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
   @Override
   public void modifyMediaArguments (Object cause, MediaViewController.Args args) {
     args.delegate = this;
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     args.setTopicId(topicId);
     args.setSearchQuery(currentQuery);
+    // endregion
   }
 
   private final MediaViewThumbLocation location = new MediaViewThumbLocation();
@@ -1785,19 +2028,30 @@ public abstract class SharedBaseController <T extends MessageSourceProvider> ext
       int left = view.getLeft();
       int right = view.getRight();
 
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       if (parent != null) {
+      // endregion
         viewTop -= SettingHolder.measureHeightForType(ListItem.TYPE_FAKE_PAGER_TOPVIEW);
       }
       int clipTop = viewTop < 0 ? -viewTop : 0;
       int clipBottom = viewBottom < 0 ? -viewBottom : 0;
+// region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 
       if (standaloneParent != null) {
         Rect visible = new Rect();
-        if (!recyclerView.getGlobalVisibleRect(visible)) return null;
-        int[] position = new int[2]; view.getLocationOnScreen(position);
-        left = position[0]; top = position[1]; right = left + view.getWidth(); bottom = top + view.getHeight();
-        clipTop = Math.max(0, visible.top - top); clipBottom = Math.max(0, bottom - visible.bottom);
+        if (!recyclerView.getGlobalVisibleRect(visible)) {
+          return null;
+        }
+        int[] position = new int[2];
+        view.getLocationOnScreen(position);
+        left = position[0];
+        top = position[1];
+        right = left + view.getWidth();
+        bottom = top + view.getHeight();
+        clipTop = Math.max(0, visible.top - top);
+        clipBottom = Math.max(0, bottom - visible.bottom);
       }
+// endregion
 
       location.set(left, top, right, bottom);
       location.setClip(0, clipTop, 0, clipBottom);

@@ -10,6 +10,30 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class ForumDraftCodecTest {
+  @Test public void readsFrozenUtf8VersionOneSnapshot () throws Exception {
+    byte[] bytes = {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 4, 't', 'e', 'x', 't',
+      1, 0, 0, 0, 2, (byte) 0xc3, (byte) 0xa9};
+    Map<String, Object> restored = ForumDraftCodec.decode(bytes);
+    assertEquals("é", restored.get("text"));
+    byte[] migrated = ForumDraftCodec.encode(restored);
+    assertEquals(2, migrated[3]);
+    assertEquals(restored, ForumDraftCodec.decode(migrated));
+  }
+
+  @Test public void readsFrozenVersionTwoArticlePayload () throws Exception {
+    byte[] bytes = {0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 4, 'b', 'o', 'd', 'y',
+      5, 0, 0, 0, 3, 0, (byte) 0xff, 1};
+    Map<String, Object> restored = ForumDraftCodec.decode(bytes);
+    assertArrayEquals(new byte[] {0, -1, 1}, (byte[]) restored.get("body"));
+    assertArrayEquals(bytes, ForumDraftCodec.encode(restored));
+  }
+
+  @Test(expected = IOException.class)
+  public void binaryTagRemainsInvalidInVersionOne () throws Exception {
+    ForumDraftCodec.decode(new byte[] {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 'b',
+      5, 0, 0, 0, 0});
+  }
+
   @Test public void roundTripsAllDraftPrimitiveTypes () throws Exception {
     Map<String, Object> fields = new HashMap<>();
     fields.put("text", "Synthetic draft: Привет 📨\nSecond line");

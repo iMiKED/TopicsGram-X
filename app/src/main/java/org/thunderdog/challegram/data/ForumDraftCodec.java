@@ -1,3 +1,15 @@
+/*
+ * This file is a part of Telegram X
+ * Copyright © 2014 (tgx-android@pm.me)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 package org.thunderdog.challegram.data;
 
 import java.io.ByteArrayInputStream;
@@ -5,15 +17,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Versioned storage for TdBundle fields, including binary rich-message snapshots. */
+/** Versioned, platform-independent storage for the TdBundle fields, including binary rich-message snapshots. */
+@me.vkryl.annotation.MadeByLLM(value = "gpt-6-astra", id = "forum-topics", ref = "PR #1095")
 public final class ForumDraftCodec {
   private static final int VERSION = 2;
   private static final int MAX_BYTES = 32 * 1024 * 1024;
-  private ForumDraftCodec () { }
+
+  private ForumDraftCodec () {
+  }
 
   public static byte[] encode (Map<String, Object> fields) {
     try {
@@ -24,14 +38,30 @@ public final class ForumDraftCodec {
       for (Map.Entry<String, Object> field : new TreeMap<>(fields).entrySet()) {
         writeString(out, field.getKey());
         Object value = field.getValue();
-        if (value == null) out.writeByte(0);
-        else if (value instanceof String) { out.writeByte(1); writeString(out, (String) value); }
-        else if (value instanceof Integer) { out.writeByte(2); out.writeInt((Integer) value); }
-        else if (value instanceof Long) { out.writeByte(3); out.writeLong((Long) value); }
-        else if (value instanceof Boolean) { out.writeByte(4); out.writeBoolean((Boolean) value); }
-        else if (value instanceof byte[]) { out.writeByte(5); out.writeInt(((byte[]) value).length); out.write((byte[]) value); }
-        else throw new IllegalArgumentException("Unsupported draft field type");
-        if (bytes.size() > MAX_BYTES) throw new IllegalArgumentException("Draft too large");
+        if (value == null) {
+          out.writeByte(0);
+        } else if (value instanceof String) {
+          out.writeByte(1);
+          writeString(out, (String) value);
+        } else if (value instanceof Integer) {
+          out.writeByte(2);
+          out.writeInt((Integer) value);
+        } else if (value instanceof Long) {
+          out.writeByte(3);
+          out.writeLong((Long) value);
+        } else if (value instanceof Boolean) {
+          out.writeByte(4);
+          out.writeBoolean((Boolean) value);
+        } else if (value instanceof byte[]) {
+          out.writeByte(5);
+          out.writeInt(((byte[]) value).length);
+          out.write((byte[]) value);
+        } else {
+          throw new IllegalArgumentException("Unsupported draft field type");
+        }
+        if (bytes.size() > MAX_BYTES) {
+          throw new IllegalArgumentException("Draft too large");
+        }
       }
       return bytes.toByteArray();
     } catch (IOException impossible) {
@@ -40,12 +70,18 @@ public final class ForumDraftCodec {
   }
 
   public static Map<String, Object> decode (byte[] bytes) throws IOException {
-    if (bytes.length > MAX_BYTES) throw new IOException("Draft too large");
+    if (bytes.length > MAX_BYTES) {
+      throw new IOException("Draft too large");
+    }
     DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
     int version = in.readInt();
-    if (version != 1 && version != VERSION) throw new IOException("Unknown draft version");
+    if (version != 1 && version != VERSION) {
+      throw new IOException("Unknown draft version");
+    }
     int count = in.readInt();
-    if (count < 0 || count > bytes.length / 5) throw new IOException("Invalid field count");
+    if (count < 0 || count > bytes.length / 5) {
+      throw new IOException("Invalid field count");
+    }
     Map<String, Object> fields = new TreeMap<>();
     for (int i = 0; i < count; i++) {
       String key = readString(in);
@@ -57,31 +93,43 @@ public final class ForumDraftCodec {
         case 3: value = in.readLong(); break;
         case 4: value = in.readBoolean(); break;
         case 5:
-          if (version < 2) throw new IOException("Unknown draft field type");
+          if (version < 2) {
+            throw new IOException("Unknown draft field type");
+          }
           int length = in.readInt();
-          if (length < 0 || length > in.available()) throw new IOException("Invalid binary draft field length");
-          byte[] binary = new byte[length]; in.readFully(binary); value = binary;
+          if (length < 0 || length > in.available()) {
+            throw new IOException("Invalid binary draft field length");
+          }
+          byte[] binary = new byte[length];
+          in.readFully(binary);
+          value = binary;
           break;
         default: throw new IOException("Unknown draft field type");
       }
-      if (fields.containsKey(key)) throw new IOException("Duplicate draft field");
+      if (fields.containsKey(key)) {
+        throw new IOException("Duplicate draft field");
+      }
       fields.put(key, value);
     }
-    if (in.available() != 0) throw new IOException("Trailing draft data");
+    if (in.available() != 0) {
+      throw new IOException("Trailing draft data");
+    }
     return fields;
   }
 
   private static void writeString (DataOutputStream out, String value) throws IOException {
-    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+    byte[] bytes = value.getBytes("UTF-8");
     out.writeInt(bytes.length);
     out.write(bytes);
   }
 
   private static String readString (DataInputStream in) throws IOException {
     int length = in.readInt();
-    if (length < 0 || length > in.available()) throw new IOException("Invalid draft field length");
+    if (length < 0 || length > in.available()) {
+      throw new IOException("Invalid draft field length");
+    }
     byte[] bytes = new byte[length];
     in.readFully(bytes);
-    return new String(bytes, StandardCharsets.UTF_8);
+    return new String(bytes, "UTF-8");
   }
 }

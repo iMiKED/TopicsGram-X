@@ -260,7 +260,9 @@ public class SharedMediaController extends SharedBaseController<MediaItem> imple
   @Override
   protected MediaItem parseObject (TdApi.Object object) {
     TdApi.Message message = (TdApi.Message) object;
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
     if (!acceptsMessage(message) || Td.isSecret(message.content)) {
+    // endregion
       return null;
     }
     MediaItem item = MediaItem.valueOf(context(), tdlib, message);
@@ -349,8 +351,12 @@ public class SharedMediaController extends SharedBaseController<MediaItem> imple
 
   @Override
   public void onClick (View v) {
-    if (retryLoad(v)) return;
+    // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+    if (retryLoad(v)) {
+      return;
+    }
     onClickAt(v, v.getWidth() / 2f, v.getHeight() / 2f);
+    // endregion
   }
 
   @Override
@@ -447,7 +453,10 @@ public class SharedMediaController extends SharedBaseController<MediaItem> imple
         strings.append(R.string.Delete);
       }
 
-      if (standaloneParent == null && (alternateParent == null || !alternateParent.inSearchMode())) {
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
+      if (standaloneParent == null && (alternateParent == null ||
+        !alternateParent.inSearchMode())) {
+      // endregion
         ids.append(R.id.btn_messageSelect);
         icons.append(R.drawable.baseline_playlist_add_check_24);
         strings.append(R.string.Select);
@@ -511,7 +520,9 @@ public class SharedMediaController extends SharedBaseController<MediaItem> imple
       c.show();
     } else if (actionId == R.id.btn_showInChat) {
       TdApi.Message message = ((MediaItem) ((ListItem) arg).getData()).getMessage();
+      // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
       openScopedMessage(message);
+      // endregion
     }
   }
 
