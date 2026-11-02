@@ -153,6 +153,9 @@
   <string name="ForumDeleteTopic">Delete topic</string>
   <string name="ForumClearGeneral">Clear General history</string>
   <string name="ForumNotifications">Topic notifications</string>
+  <string name="ForumNotificationsState">Topic notifications · %1$s</string>
+  <string name="format_forumPreview">%1$s: %2$s</string>
+  <string name="ForumTopicAccessibility">%1$s. %2$s. %3$s. %4$s. %5$s</string>
   <string name="ForumNotificationsDefault">Use group settings</string>
   <string name="ForumNotificationsOn">Always notify</string>
   <string name="ForumNotificationsMuted">Muted</string>
