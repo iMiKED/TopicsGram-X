@@ -73,17 +73,19 @@ final class MiniAppRequestedChat {
       next.button = ((TdApi.KeyboardButton) result).type;
       if (next.button instanceof TdApi.KeyboardButtonTypeRequestUsers || next.button instanceof TdApi.KeyboardButtonTypeRequestChat) next.picker();
       else if (next.button instanceof TdApi.KeyboardButtonTypeRequestManagedBot) {
-        next.send(new TdApi.GetOption("can_share_managed_bot"), capability -> {
-          if (!(capability instanceof TdApi.OptionValueBoolean) || !((TdApi.OptionValueBoolean) capability).value) {
-            UI.showToast(R.string.MiniAppManagedBotUnavailable, android.widget.Toast.LENGTH_LONG); next.finish(false); return;
+        // region @MadeByLLM("GPT-5")
+        MiniAppRequestedChatPolicy.requestManagedBot(host.botId(), next::send, manager -> {
+          if (manager == null) {
+            UI.showToast(
+              Lang.getString(R.string.MiniAppManagedBotUnsupported, host.botName()),
+              android.widget.Toast.LENGTH_LONG
+            );
+            next.finish(false);
+            return;
           }
-          next.send(new TdApi.GetUser(host.botId()), user -> {
-            if (!(user instanceof TdApi.User) || !(((TdApi.User) user).type instanceof TdApi.UserTypeBot) || !((TdApi.UserTypeBot) ((TdApi.User) user).type).canManageBots) {
-              UI.showToast(Lang.getString(R.string.MiniAppManagedBotUnsupported, host.botName()), android.widget.Toast.LENGTH_LONG); next.finish(false); return;
-            }
-            next.createManagedBot((TdApi.User) user);
-          });
+          next.createManagedBot(manager);
         });
+        // endregion
       }
       else next.finish(false);
     });
@@ -111,13 +113,24 @@ final class MiniAppRequestedChat {
     Operation (MiniAppDocument.Request origin, String id) { this.origin = origin; this.id = id; source = new TdApi.KeyboardButtonSourceWebApp(host.botId(), id); }
     boolean current () { return operation == this && host.current(origin); }
     boolean interactive () { return current() && host.isShowing() && host.context().getActivityState() == UI.State.RESUMED; }
+    // region @MadeByLLM("GPT-5")
     void send (TdApi.Function<?> function, Client.ResultHandler result) {
-      gateway.send(function, response -> tdlib.ui().post(() -> {
-        if (!current()) { if (operation == this) finish(false); return; }
-        if (!sharing && !interactive()) { finish(false); return; }
-        result.onResult(response);
-      }));
+      gateway.send(
+        function,
+        response -> tdlib.ui().post(() ->
+          MiniAppRequestedChatPolicy.dispatchResponse(
+            operation == this,
+            current(),
+            sharing,
+            !sharing && interactive(),
+            response,
+            result,
+            () -> finish(false)
+          )
+        )
+      );
     }
+    // endregion
     void finish (boolean sent) {
       if (operation != this) return;
       operation = null; dismiss();
