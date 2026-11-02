@@ -397,7 +397,15 @@ final class MiniAppStage45Checks {
         else button.type = new TdApi.KeyboardButtonTypeRequestUsers(77, true, false, false, false, 2, true, true, false);
         callback.onResult(button);
       } else if (function instanceof TdApi.GetChats || function instanceof TdApi.SearchChats) callback.onResult(new TdApi.Chats(1, new long[] {self.id}));
-      else if (function instanceof TdApi.GetOption) callback.onResult(new TdApi.OptionValueBoolean(false));
+      // region @MadeByLLM("GPT-5")
+      else if (function instanceof TdApi.GetUser) {
+        test.check(((TdApi.GetUser) function).userId == bot, "manager lookup uses the Mini App bot");
+        TdApi.User manager = new TdApi.User();
+        manager.id = bot;
+        manager.type = new TdApi.UserTypeBot();
+        callback.onResult(manager);
+      }
+      // endregion
       else if (function instanceof TdApi.SearchContacts) callback.onResult(new TdApi.Users(0, new long[0]));
       else if (function instanceof TdApi.LoadChats) callback.onResult(new TdApi.Ok());
       else if (function instanceof TdApi.ShareUsersWithBot) {
@@ -475,7 +483,12 @@ final class MiniAppStage45Checks {
     pending.get().onResult(new TdApi.Error(400, "BUTTON_ID_INVALID"));
     test.check("send_error".equals(result("requested_chat_failed").getString("req_id")) && !has("requested_chat_sent"), "server rejection after confirmation returns failure rather than optimistic success");
     clear(); send("web_app_request_chat", "{\"req_id\":\"managed\"}");
-    test.check("managed".equals(result("requested_chat_failed").getString("req_id")), "managed bot dependency fails explicitly before creating any real bot");
+    // region @MadeByLLM("GPT-5")
+    test.check(
+      "managed".equals(result("requested_chat_failed").getString("req_id")),
+      "manager without canManageBots fails explicitly before creating any real bot"
+    );
+    // endregion
     test.check(sent.get() == 2 && chatsShared.get() == 1, "all cancellation paths performed zero extra sends");
   }
   private Object requestedOperation () throws Exception {
@@ -483,19 +496,31 @@ final class MiniAppStage45Checks {
     throw new AssertionError("Requested chat picker missing");
   }
 
-  /** All create/share requests are intercepted; only native capability reads use the live client. */
+  // region @MadeByLLM("GPT-5")
+  /** All managed-flow requests are intercepted; the final live GetUser is informational only. */
+  // endregion
   private void managedBotChecks () throws Exception {
-    TdApi.Object nativeManaged = call(new TdApi.GetOption("can_share_managed_bot"));
-    test.check(nativeManaged instanceof TdApi.OptionValueBoolean && ((TdApi.OptionValueBoolean) nativeManaged).value, "installed native TDLib supports managed bot sharing");
-    java.util.concurrent.atomic.AtomicBoolean supported = new java.util.concurrent.atomic.AtomicBoolean(true), managerEnabled = new java.util.concurrent.atomic.AtomicBoolean(true);
+    // region @MadeByLLM("GPT-5")
+    AtomicReference<TdApi.Error> managerError = new AtomicReference<>();
+    java.util.concurrent.atomic.AtomicBoolean managerEnabled =
+      new java.util.concurrent.atomic.AtomicBoolean(true);
+    // endregion
     java.util.concurrent.atomic.AtomicInteger creates = new java.util.concurrent.atomic.AtomicInteger(), shares = new java.util.concurrent.atomic.AtomicInteger();
     java.util.concurrent.atomic.AtomicLong opened = new java.util.concurrent.atomic.AtomicLong();
     AtomicReference<TdApi.CreateBot> creation = new AtomicReference<>(); AtomicReference<TdApi.ShareUsersWithBot> sharing = new AtomicReference<>();
     AtomicReference<org.drinkless.tdlib.Client.ResultHandler> createReply = new AtomicReference<>(), shareReply = new AtomicReference<>();
     main(() -> set(host, "requestedChat", new MiniAppRequestedChat(host, (function, callback) -> {
       if (function instanceof TdApi.GetPreparedKeyboardButton) callback.onResult(new TdApi.KeyboardButton("Test", 0, null, new TdApi.KeyboardButtonTypeRequestManagedBot(79, "Synthetic Bot", "synthetic_BOT")));
-      else if (function instanceof TdApi.GetOption) callback.onResult(new TdApi.OptionValueBoolean(supported.get()));
       else if (function instanceof TdApi.GetUser) {
+        // region @MadeByLLM("GPT-5")
+        test.check(((TdApi.GetUser) function).userId == bot, "manager lookup uses the Mini App bot");
+        TdApi.Error error = managerError.get();
+        if (error != null) {
+          callback.onResult(error);
+          return;
+        }
+        // GetOption is deliberately not handled: a custom capability probe fails this fixture.
+        // endregion
         TdApi.User manager = new TdApi.User(); manager.id = bot; manager.firstName = "NskDanceBot"; manager.lastName = "";
         TdApi.UserTypeBot type = new TdApi.UserTypeBot(); type.canManageBots = managerEnabled.get(); manager.type = type; callback.onResult(manager);
       } else if (function instanceof TdApi.CheckBotUsername) {
@@ -565,10 +590,28 @@ final class MiniAppStage45Checks {
     Thread.sleep(150); test.check(opened.get() == created.id, "successful foreground share opens the created bot through the navigation delegate");
     shareReply.get().onResult(new TdApi.Ok()); Thread.sleep(100);
     test.check("1".equals(test.evaluate(web, "events.filter(e=>e.event==='requested_chat_sent').length")), "duplicate acknowledgement cannot complete twice");
-    clear(); supported.set(false); send("web_app_request_chat", "{\"req_id\":\"managed-old-native\"}");
-    test.check("managed-old-native".equals(result("requested_chat_failed").getString("req_id")) && creates.get() == 2, "older native library is rejected before creating an orphaned bot");
-    clear(); supported.set(true); managerEnabled.set(false); send("web_app_request_chat", "{\"req_id\":\"managed-unsupported\"}");
-    test.check("managed-unsupported".equals(result("requested_chat_failed").getString("req_id")) && creates.get() == 2, "bot without Bot Management mode is rejected before creation");
+    // region @MadeByLLM("GPT-5")
+    clear();
+    opened.set(0);
+    managerError.set(new TdApi.Error(403, "BOT_ACCESS_DENIED"));
+    send("web_app_request_chat", "{\"req_id\":\"managed-lookup-error\"}");
+    test.check(
+      "managed-lookup-error".equals(result("requested_chat_failed").getString("req_id")) &&
+        creates.get() == 2 && shares.get() == 1 && opened.get() == 0 &&
+        !has("requested_chat_sent") && field(field(host, "requestedChat"), "operation") == null,
+      "GetUser error finishes without creating, sharing or opening a bot"
+    );
+    clear();
+    managerError.set(null);
+    managerEnabled.set(false);
+    send("web_app_request_chat", "{\"req_id\":\"managed-unsupported\"}");
+    test.check(
+      "managed-unsupported".equals(result("requested_chat_failed").getString("req_id")) &&
+        creates.get() == 2 && shares.get() == 1 && opened.get() == 0 &&
+        !has("requested_chat_sent") && field(field(host, "requestedChat"), "operation") == null,
+      "bot without Bot Management mode is rejected before creation"
+    );
+    // endregion
     clear(); managerEnabled.set(true); opened.set(0); send("web_app_request_chat", "{\"req_id\":\"managed-background\"}"); Object background = managedOperation();
     for (int i = 0; i < 100 && field(background, "checkedBotUsername") == null; i++) Thread.sleep(50);
     main(() -> ((android.view.View) field(background, "submit")).performClick());

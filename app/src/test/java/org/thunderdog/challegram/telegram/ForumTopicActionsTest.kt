@@ -106,8 +106,15 @@ class ForumTopicActionsTest {
   @Test fun latePreflightReadCannotUndoSuccessfulMutationOrConsumeItsInvalidation() {
     val session = store.openList(100, "") { }
     backend.next<TdApi.GetForumTopics>().reply(page(topic()))
-    store.perform(TdApi.GetForumTopic(key.chatId, key.forumTopicId), key.chatId, null,
-      TdApi.ForumTopic.CONSTRUCTOR, changesState = false) { _, error -> assertNull(error) }
+    store.perform(
+      TdApi.GetForumTopic(key.chatId, key.forumTopicId),
+      key.chatId,
+      null,
+      TdApi.ForumTopic.CONSTRUCTOR,
+      false
+    ) { _, error ->
+      assertNull(error)
+    }
     val oldRead = backend.next<TdApi.GetForumTopic>()
     actions.setClosed(key, true, ok)
     store.updateInfo(topic().info.apply { isClosed = true })

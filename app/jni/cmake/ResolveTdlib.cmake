@@ -50,4 +50,3 @@ function(resolve_tdlib_library tdlib_dir ndk_revision platform abi output_variab
   message(FATAL_ERROR
     "No compatible libtdjni.so for TDLib ${expected_commit}, NDK ${ndk_revision}, platform ${platform}, ABI ${abi}. Checked: ${candidates}")
 endfunction()
-

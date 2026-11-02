@@ -7,7 +7,7 @@ import org.thunderdog.challegram.telegram.TdlibForumTopicManager.Key
 
 class ForumTopicStoreTest {
   private val backend = ForumTopicTestBackend()
-  private val store = ForumTopicStore(backend, pageSize = 2)
+  private val store = ForumTopicStore(backend, 2)
   private val key = Key(100, 17)
   private fun open(query: String = "", chat: Long = 100) = store.openList(chat, query) { }
   private fun loaded(vararg topics: TdApi.ForumTopic): ForumTopicStore.ListSession {
@@ -748,7 +748,7 @@ class ForumTopicStoreTest {
   }
 
   @Test fun inactiveCachesAreBoundedButActiveRowsAreRetained() {
-    val limited = ForumTopicStore(backend, maxCachedTopics = 2, maxInactiveLists = 1)
+    val limited = ForumTopicStore(backend, 50, 2, 1)
     val first = limited.openList(100, "") { }
     backend.next<TdApi.GetForumTopics>().reply(page(topic(17), topic(18), topic(19)))
     assertEquals(3, first.snapshot.topics.size)

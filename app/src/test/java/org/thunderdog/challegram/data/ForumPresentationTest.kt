@@ -89,7 +89,7 @@ class ForumPresentationTest {
     assertTrue(reply.toInputMessageReply() is TdApi.InputMessageReplyToExternalMessage)
   }
   @Test fun productionReplyKeepsQuoteAndChecklistPollMetadata() {
-    val quote = TdApi.InputTextQuote(TdApi.FormattedText("Synthetic", null), 0)
+    val quote = TdApi.InputTextQuote(TdApi.FormattedText("Synthetic", null), emptyArray(), 0)
     val reply = ReplyInfo(null, MessageWithProperties(message(), TdApi.MessageProperties()), quote, 7, "option").withTopic(100, null)
     val input = reply.toInputMessageReply() as TdApi.InputMessageReplyToMessage
     assertTrue(input.quote === quote); assertEquals(7, input.checklistTaskId); assertEquals("option", input.pollOptionId)

@@ -1,5 +1,6 @@
 package org.thunderdog.challegram.telegram
 
+import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertTrue
 import java.util.PriorityQueue
@@ -26,14 +27,25 @@ internal class ForumTopicTestBackend : ForumTopicStore.Backend {
   var publicationCount = 0
     private set
 
-  override fun execute(action: () -> Unit) { if (deferOwner) ownerTasks.add(action) else action() }
-  override fun send(request: TdApi.Function<*>, callback: (TdApi.Object) -> Unit) {
-    val call = Call(request, callback)
+  override fun execute(action: Runnable) {
+    if (deferOwner) {
+      ownerTasks.add(action::run)
+    } else {
+      action.run()
+    }
+  }
+  override fun send(request: TdApi.Function<*>, callback: Client.ResultHandler) {
+    val call = Call(request, callback::onResult)
     calls.add(call)
     immediateResponse?.invoke(request)?.let { call.reply(it) }
   }
-  override fun schedule(delayMs: Long, action: () -> Unit) { timers.add(Task(time + delayMs, sequence++, action)) }
-  override fun publish(action: () -> Unit) { publicationCount++; publications.add(action) }
+  override fun schedule(delayMs: Long, action: Runnable) {
+    timers.add(Task(time + delayMs, sequence++, action::run))
+  }
+  override fun publish(action: Runnable) {
+    publicationCount++
+    publications.add(action::run)
+  }
   fun publish() { while (publications.isNotEmpty()) publications.removeFirst()() }
   fun execute() { while (ownerTasks.isNotEmpty()) ownerTasks.removeFirst()() }
   fun advance(ms: Long = ForumTopicStore.RECONCILE_DELAY_MS) {
