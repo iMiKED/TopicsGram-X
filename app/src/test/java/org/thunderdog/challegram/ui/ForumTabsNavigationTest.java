@@ -179,4 +179,45 @@ public class ForumTabsNavigationTest {
     assertEquals(43, form.completedTopicId());
     assertTrue(form.claimCompletion());
   }
+
+  private int unavailableParent (List<Page> stack, int owner) {
+    return ForumTabsNavigation.unavailableTopicParentIndex(
+      stack,
+      owner,
+      page -> page.matches() && page.host,
+      page -> page.matches() && page.removable
+    );
+  }
+
+  @Test public void unavailableTopicReturnsOnlyThroughContiguousDisposableHistory () {
+    List<Page> stack = Arrays.asList(host(), profile(), profile());
+    assertEquals(0, unavailableParent(stack, 2));
+    assertEquals(0, unavailableParent(stack, 1));
+    assertEquals(3, stack.size());
+  }
+
+  @Test public void unavailableTopicCannotJumpAcrossUnrelatedOrDirtyPages () {
+    for (Page barrier : Arrays.asList(
+      new Page(ACCOUNT + 1, CHAT, true, true, false),
+      new Page(ACCOUNT, CHAT + 1, true, true, false),
+      new Page(ACCOUNT, CHAT, false, true, false),
+      new Page(ACCOUNT, CHAT, true, false, false)
+    )) {
+      assertEquals(-1, unavailableParent(Arrays.asList(host(), barrier, profile()), 2));
+    }
+  }
+
+  @Test public void unavailableTopicNeverInventsAParentOrUsesADetachedOwner () {
+    List<Page> stack = Arrays.asList(profile(), profile(), host());
+    assertEquals(-1, unavailableParent(stack, 0));
+    assertEquals(-1, unavailableParent(stack, 1));
+    assertEquals(-1, unavailableParent(stack, -1));
+    assertEquals(-1, unavailableParent(stack, 3));
+  }
+
+  @Test public void unavailableTopicKeepsNearestParentAndNeverTouchesEarlierHistory () {
+    List<Page> stack = Arrays.asList(host(), profile(), host(), profile());
+    assertEquals(2, unavailableParent(stack, 3));
+    assertEquals(4, stack.size());
+  }
 }

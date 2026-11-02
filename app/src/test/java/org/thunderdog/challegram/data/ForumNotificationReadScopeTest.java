@@ -133,4 +133,104 @@ public class ForumNotificationReadScopeTest {
   public void emptyRequestSetCannotBeTreatedAsSuccessful () {
     new ForumNotificationReadScope.Completion(0);
   }
+
+  private static TdApi.Message ordinaryMessage (long id, int topic) {
+    TdApi.Message message = new TdApi.Message();
+    message.id = id;
+    message.chatId = CHAT_ID;
+    message.topicId = topic > 0 ? new TdApi.MessageTopicForum(topic) : null;
+    return message;
+  }
+
+  @Test public void ordinaryMessagesAreSplitByTopicBeforeViewing () {
+    long[] ids = {101, 102, 103};
+    List<TdApi.ViewMessages> requests = ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      ids,
+      new TdApi.Message[] {ordinaryMessage(101, 7), ordinaryMessage(102, 9), ordinaryMessage(103, 7)}
+    );
+    assertEquals(2, requests.size());
+    assertArrayEquals(new long[] {101, 103}, requests.get(0).messageIds);
+    assertArrayEquals(new long[] {102}, requests.get(1).messageIds);
+    for (TdApi.ViewMessages request : requests) {
+      assertEquals(CHAT_ID, request.chatId);
+      assertTrue(request.forceRead);
+      assertTrue(request.source instanceof TdApi.MessageSourceForumTopicHistory);
+    }
+    assertArrayEquals(new long[] {101, 102, 103}, ids);
+  }
+
+  @Test public void ordinaryGeneralAndNonForumMessagesKeepDifferentSources () {
+    List<TdApi.ViewMessages> requests = ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {1, 2},
+      new TdApi.Message[] {ordinaryMessage(1, 1), ordinaryMessage(2, 0)}
+    );
+    assertEquals(2, requests.size());
+    assertTrue(requests.get(0).source instanceof TdApi.MessageSourceForumTopicHistory);
+    assertTrue(requests.get(1).source instanceof TdApi.MessageSourceNotification);
+  }
+
+  @Test public void ordinaryReplyReadOnlyContainsItsTargetMessage () {
+    List<TdApi.ViewMessages> requests = ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {103},
+      new TdApi.Message[] {ordinaryMessage(103, 9)}
+    );
+    assertEquals(1, requests.size());
+    assertArrayEquals(new long[] {103}, requests.get(0).messageIds);
+  }
+
+  @Test public void ordinaryDuplicateMessageIdsAreNotSentTwice () {
+    List<TdApi.ViewMessages> requests = ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {101, 101},
+      new TdApi.Message[] {ordinaryMessage(101, 7), ordinaryMessage(101, 7)}
+    );
+    assertEquals(1, requests.size());
+    assertArrayEquals(new long[] {101}, requests.get(0).messageIds);
+  }
+
+  @Test public void ordinaryMissingMessagesNeverFallBackToChatWideRead () {
+    assertNull(ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {101},
+      new TdApi.Message[] {null}
+    ));
+    assertNull(ForumNotificationReadScope.messageRequests(CHAT_ID, new long[] {101}, null));
+    assertNull(ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {101},
+      new TdApi.Message[0]
+    ));
+    assertNull(ForumNotificationReadScope.messageRequests(CHAT_ID, null, new TdApi.Message[0]));
+    assertNull(ForumNotificationReadScope.messageRequests(CHAT_ID, new long[0], new TdApi.Message[0]));
+  }
+
+  @Test public void ordinaryMismatchedMessageOrChatFailsTheWholeScope () {
+    TdApi.Message wrongChat = ordinaryMessage(102, 9);
+    wrongChat.chatId++;
+    assertNull(ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {101, 102},
+      new TdApi.Message[] {ordinaryMessage(101, 7), wrongChat}
+    ));
+    assertNull(ForumNotificationReadScope.messageRequests(
+      CHAT_ID,
+      new long[] {101},
+      new TdApi.Message[] {ordinaryMessage(102, 7)}
+    ));
+  }
+
+  @Test public void ordinaryInvalidTopicFailsTheWholeScope () {
+    for (int invalid : new int[] {0, -1}) {
+      TdApi.Message message = ordinaryMessage(101, 7);
+      message.topicId = new TdApi.MessageTopicForum(invalid);
+      assertNull(ForumNotificationReadScope.messageRequests(
+        CHAT_ID,
+        new long[] {101},
+        new TdApi.Message[] {message}
+      ));
+    }
+  }
 }

@@ -73,6 +73,35 @@ public class ForumTopicNotificationsTest {
     }
   }
 
+  @Test
+  public void supportedSoundChoicesClearTheSavedSoundWithoutChangingOtherFields () throws Exception {
+    TdApi.ChatNotificationSettings source = settings();
+    for (boolean inherit : new boolean[] {true, false}) {
+      TdApi.ChatNotificationSettings result = ForumTopicNotifications.sound(source, inherit, 0);
+      assertEquals(inherit, result.useDefaultSound);
+      assertEquals(0, result.soundId);
+      assertFalse(source.useDefaultSound);
+      assertEquals(123, source.soundId);
+      unchangedExcept(source, result, "useDefaultSound", "soundId");
+    }
+  }
+
+  @Test
+  public void unrelatedTopicEditsPreserveSavedSoundConfiguredByAnotherClient () throws Exception {
+    TdApi.ChatNotificationSettings source = settings();
+    assertEquals(123, ForumTopicNotifications.mute(source, true, 0).soundId);
+    assertEquals(
+      123,
+      ForumTopicNotifications.field(
+        source,
+        ForumTopicNotifications.Field.PREVIEW,
+        false,
+        false
+      ).soundId
+    );
+    unchangedExcept(source, ForumTopicNotifications.copy(source));
+  }
+
   @Test public void everySupportedBooleanHasIndependentInheritanceAndNoOtherChanges () throws Exception {
     TdApi.ChatNotificationSettings source = settings();
     for (ForumTopicNotifications.Field field : ForumTopicNotifications.Field.values()) {
