@@ -1,5 +1,11 @@
 # TDLib prebuilt selection
 
+The current integration candidate uses the stock `f896c3f2` bundle and source model
+`4c6377aa`. The same exact Java/JNI revision check below is retained for all ABI splits.
+The old Mini Apps SDK/ABI-flavor bundle selector has been removed; no custom Java model
+or native directory is selected. The incident and APK/device results below are historical,
+not acceptance evidence for the current candidate.
+
 The pinned TDLib wrapper `8235f59dacdecbfc61f303d41654123cdbac2d44` contains Java bindings for revision `42e6a5259551178d1dab54a22ad96d14bd906e20`, but the ARM64 library in `src/main/libs/27.3.13750724/arm64-v8a/` embeds revision `d1085f9cebc5a62379991ae1652673954f229c1f`. The compatible binary is already present in the same bundle, under `src/main/libs/27.3.13750724/libs/arm64-v8a/`.
 
 The old fixed CMake path packaged the stale binary. Compilation and signing succeeded, but `JNI_OnLoad` aborted at startup with `Mismatched TdApi.java (...) and tdjni shared library (...) versions`.
