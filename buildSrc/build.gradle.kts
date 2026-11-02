@@ -13,6 +13,12 @@ java {
 }
 
 kotlin {
+  sourceSets.named("main") {
+    kotlin.srcDir("../tests/buildSrc/kotlin")
+  }
+  sourceSets.named("test") {
+    kotlin.srcDir("../tests/buildSrc/checks")
+  }
   compilerOptions {
     allWarningsAsErrors = true
     jvmTarget = JvmTarget.JVM_25
@@ -40,13 +46,14 @@ dependencies {
   implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
 
   compileOnly(gradleApi())
+  implementation(libs.vkryl.annotation)
   implementation(libs.android.gradle.plugin)
   implementation(libs.kotlin.gradle.plugin)
   implementation(libs.okhttp.latest)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.jgit)
   implementation(libs.jgit.lfs)
-  testImplementation("junit:junit:4.13.2")
+  testImplementation(libs.bundles.unit.test)
   testImplementation(gradleApi())
 }
 

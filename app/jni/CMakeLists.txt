@@ -6,10 +6,6 @@ if(NOT ANDROID_NDK_MAJOR OR NOT ANDROID_NDK_REVISION)
   message(FATAL_ERROR "Unknown NDK: r${ANDROID_NDK_MAJOR} (${ANDROID_NDK_REVISION})")
 endif()
 
-if (NOT TGX_FLAVOR MATCHES "^(legacy|lollipop|marshmallow|latest)$")
-  message(FATAL_ERROR "Unknown flavor: ${TGX_FLAVOR}")
-endif()
-
 if (NOT DEFINED ANDROID_MIN_SDK_VERSION)
   message(FATAL_ERROR "ANDROID_MIN_SDK_VERSION is not set")
 endif()
@@ -30,10 +26,10 @@ set(THIRDPARTY_DIR "${PROJECT_SOURCE_DIR}/third_party")
 set(TDLIB_DIR "${TGX_ROOT_DIR}/tdlib")
 set(UTILS_DIR "${THIRDPARTY_DIR}/jni-utils")
 
-if(${TGX_FLAVOR} STREQUAL "legacy")
-  set(ENABLE_TGVOIP no)
-else()
+if(ANDROID_MIN_SDK_VERSION GREATER_EQUAL 21)
   set(ENABLE_TGVOIP yes)
+else()
+  set(ENABLE_TGVOIP no)
 endif()
 
 # Using webp only if building for 32-bit platform
@@ -76,9 +72,12 @@ add_compile_options(
   "$<$<CONFIG:Release,RelWithDebInfo,MinSizeRel>:-flto=full>"
 )
 
+file(REAL_PATH "${ANDROID_NDK}" ANDROID_NDK_REAL_PATH) # @MadeByLLM("opus-5.5")
+
 add_compile_options(
   "$<$<COMPILE_LANGUAGE:C,CXX,ASM>:-ffile-prefix-map=${TGX_ROOT_DIR}/=>"
   "$<$<COMPILE_LANGUAGE:C,CXX,ASM>:-ffile-prefix-map=${ANDROID_NDK}/=ndk/>"
+  "$<$<COMPILE_LANGUAGE:C,CXX,ASM>:-ffile-prefix-map=${ANDROID_NDK_REAL_PATH}/=ndk/>" # @MadeByLLM("opus-5.5")
   "$<$<COMPILE_LANGUAGE:C,CXX,ASM>:-ffile-prefix-map=${CMAKE_BINARY_DIR}=.cxx>"
 )
 
@@ -119,10 +118,10 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.11.0")
   )
 endif()
 
-include("${PROJECT_SOURCE_DIR}/cmake/ResolveTdlib.cmake")
-resolve_variant_tdlib_library("${TDLIB_DIR}" "${ANDROID_NDK_REVISION}" "${ANDROID_PLATFORM}" "${ANDROID_ABI}" "${TGX_FLAVOR}" "${TGX_ABI_FLAVOR}" TDLIB_JNI_LIBRARY)
 add_library(tdjni SHARED IMPORTED)
-set_target_properties(tdjni PROPERTIES IMPORTED_LOCATION "${TDLIB_JNI_LIBRARY}")
+set_target_properties(tdjni PROPERTIES IMPORTED_LOCATION
+  ${TDLIB_DIR}/src/main/libs/${ANDROID_NDK_REVISION}/${ANDROID_PLATFORM}/${ANDROID_ABI}/libtdjni.so
+)
 target_link_libraries(tdjni INTERFACE crypto ssl)
 
 # opus
@@ -155,8 +154,15 @@ endif()
 # opusfile
 include("${PROJECT_SOURCE_DIR}/BuildOpusfile.cmake")
 
-# rlottie
-include("${PROJECT_SOURCE_DIR}/BuildRlottie.cmake")
+# tlottie
+set(TLOTTIE_LIB_PATH "${TLOTTIE_DIR}/${ANDROID_ABI}/lib/libtlottie.a")
+add_library(tlottie STATIC IMPORTED)
+set_target_properties(tlottie PROPERTIES IMPORTED_LOCATION "${TLOTTIE_LIB_PATH}")
+target_include_directories(tlottie INTERFACE "${THIRDPARTY_DIR}/tlottie/include")
+if(NOT EXISTS "${TLOTTIE_LIB_PATH}")
+  message(WARNING
+    "Missing dependency: tlottie. Run :app:buildTlottie or Refresh Linked C++ Projects")
+endif()
 
 # lz4
 include("${PROJECT_SOURCE_DIR}/BuildLz4.cmake")
@@ -262,7 +268,7 @@ target_link_libraries(${NATIVE_LIB}
   ogg
   opusfile
   opus
-  rlottie
+  tlottie
   lz4
 )
 if (${USE_WEBP})

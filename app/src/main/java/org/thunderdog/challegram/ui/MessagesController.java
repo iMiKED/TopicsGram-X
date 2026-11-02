@@ -847,6 +847,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
     params.addRule(RelativeLayout.ALIGN_TOP, R.id.msg_bottom);
 
     topBar = new CollapseListView(context);
+    topBar.setId(R.id.msg_topBar);
     topBar.setLayoutParams(params);
     topBar.setTotalHeightChangeListener(listView -> onMessagesFrameChanged());
 
@@ -4690,7 +4691,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
 
   @Override
   public final boolean shouldDisallowScreenshots () {
-    return (chat != null && (isSecretChat() || chat.hasProtectedContent || manager.hasVisibleProtectedContent())) || super.shouldDisallowScreenshots();
+    return !Config.ENABLE_TEST_HOOKS && ((chat != null && (isSecretChat() || chat.hasProtectedContent || manager.hasVisibleProtectedContent())) || super.shouldDisallowScreenshots());
   }
 
   @Override
@@ -7681,7 +7682,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
           return !Td.equalsTo(oldText, newText);
         }
         default: {
-          Td.assertMessageContent_f7758f8b();
+          Td.assertMessageContent_cc875c63();
           break;
         }
       }
@@ -8101,7 +8102,7 @@ public class MessagesController extends ViewController<MessagesController.Argume
         break;
       }
       default: {
-        Td.assertMessageContent_f7758f8b();
+        Td.assertMessageContent_cc875c63();
         throw Td.unsupported(editContext.message.content);
       }
     }

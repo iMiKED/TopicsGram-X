@@ -280,6 +280,7 @@
   <item type="id" name="msg_list" />
   <item type="id" name="msg_bottomShadow" />
   <item type="id" name="msg_bottomReply" />
+  <item type="id" name="msg_topBar" />
 
   <item type="id" name="emoji" />
   <item type="id" name="emoji_recent" />
@@ -674,6 +675,7 @@
   <item type="id" name="btn_startMessaging" />
 
   <item type="id" name="startup_marker" />
+  <item type="id" name="screen_marker" />
 
   <item type="id" name="stats_memberCount" />
   <item type="id" name="stats_join" />
