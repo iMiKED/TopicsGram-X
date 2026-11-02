@@ -2,7 +2,11 @@
 
 Upstream now supports Windows hosts for libvpx, FFmpeg and Opus preparation. This fork uses that implementation and the standard `msys2.dir` setting, plus the source-copy/version/log safeguards described below. Use the Windows JDK and Android SDK/NDK, plus MSYS2 for POSIX configure/make scripts.
 
-The integration baseline is upstream `51a2ba25` (2026-10-06), version 1816 with NDK r30 and updated tgcalls/WebRTC. It also retains the October 5 FFmpeg, multidex startup and OpenGL intro fixes. Earlier dated results below are historical, not validation of the newest native inputs. The fork's product/build branch is now `main`.
+The current refresh candidate uses upstream `6769c503` (version 1822) on the local
+`integration/fork-refresh-20261103` branch. Product `main` is unchanged until the candidate
+passes acceptance. Earlier dated results below are historical, not validation of the new inputs.
+The candidate uses stock TDLib, ABI splits and Rust-built tlottie instead of the old
+variant-specific Mini Apps bundle and rlottie.
 
 Build verification on 2026-09-27/28 used app revision `9291ce110ccc852c0b7043b92f4ac19c4e651242` plus this branch's build changes: `assembleLatestArm64Debug`, APK metadata/signature checks, and repeat incremental builds with unchanged APK SHA-256. All 17 build-infrastructure tests passed, including the real MSYS2 argument test. These results cover ARM64 debug builds only, not other ABIs/flavors or release signing. Device test data and credentials are not part of this repository.
 
@@ -11,6 +15,8 @@ Verification used JDK 21.0.10, Gradle 9.7.1, AGP 9.4.0, Windows NDK 27.3.1375072
 ## Requirements
 
 - JDK and Android packages matching the current project configuration. Use the checked-in Gradle wrapper.
+- Rust matching `version.rust`, with all four Android targets listed in `scripts/setup-rust.sh`.
+  On Windows, install the same toolchain/targets with rustup and set `rust.dir` to its home.
 - A Windows Android SDK with the matching Build Tools, NDK and CMake packages. The platform selected by `compileSdk` is required, not just the platform named by the setup script. For the current configuration these are `android-37.0` and `android-37.2`, respectively.
 - [MSYS2](https://www.msys2.org/docs/installer/) with `bash`, `make`, `perl` and `diffutils`. In the MSYS2 terminal, install missing packages with `pacman -S --needed make perl diffutils`.
 - Prefer checkout and SDK paths without whitespace: third-party configure/make scripts have their own path restrictions.
@@ -30,7 +36,7 @@ msys2.dir=C:/Tools/msys64
 The old `TGX_MSYS2_ROOT` environment variable is no longer needed to select tools for Gradle tasks; explicit `msys2.dir` takes precedence. It remains an optional input for the standalone host-helper runtime tests.
 
 ```powershell
-./gradlew.bat :app:assembleLatestArm64Debug
+./gradlew.bat :app:assembleLatestDebug '-Pabi=arm64-v8a'
 ```
 
 This is an ARM64 debug build for the latest SDK flavor, not a verification of every ABI/flavor. A production release additionally requires the project's normal signing and service configuration.
@@ -75,8 +81,8 @@ These are the three tested configurations, not all-ABI certification. Credential
 
 ```powershell
 ./gradlew.bat -p buildSrc test
-./gradlew.bat :app:patchOpus :app:buildLibvpxLatestArm64
-./gradlew.bat :app:assembleLatestArm64Debug
+./gradlew.bat :app:patchOpus ':app:buildLibvpx[latest,arm64-v8a]'
+./gradlew.bat :app:assembleLatestDebug '-Pabi=arm64-v8a'
 ```
 
 The build-host unit tests exercise Windows tool selection, shell argument boundaries, missing-tool diagnostics, LF normalization and the unchanged Unix command/environment path. On Windows, setting `TGX_MSYS2_ROOT` additionally enables a real MSYS2 argument-preservation test; it is skipped when the host is not configured. Passing those tests alone does not establish a successful native library or APK build.
