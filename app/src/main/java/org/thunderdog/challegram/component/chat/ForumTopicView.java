@@ -51,7 +51,7 @@ import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import me.vkryl.android.AnimatorUtils;
-import me.vkryl.android.animator.FactorAnimator;
+import me.vkryl.android.animatorx.FloatAnimator;
 import tgx.td.Td;
 
 /** Two text lines. Topic counters and outgoing delivery are intentionally independent. */
@@ -78,7 +78,7 @@ public final class ForumTopicView extends View {
   private String titleLine = "", previewLine = "", iconInitial = "#";
   private boolean hasDraft, muted, selectionMode;
   private float selectionFactor;
-  private FactorAnimator selectionAnimator;
+  private FloatAnimator selectionAnimator;
   private Drawable delivery;
   private int deliveryColor = ColorId.iconLight;
   private int counterColumns = 1;
@@ -127,21 +127,20 @@ public final class ForumTopicView extends View {
       ViewCompat.isAttachedToWindow(this) &&
       selectionFactor != target) {
       if (selectionAnimator == null) {
-        selectionAnimator = new FactorAnimator(
-          0,
-          (id, factor, fraction, animator) -> {
+        selectionAnimator = new FloatAnimator(
+          180L,
+          AnimatorUtils.ACCELERATE_DECELERATE_INTERPOLATOR,
+          selectionFactor,
+          factor -> {
             selectionFactor = factor;
             invalidate();
-          },
-          AnimatorUtils.ACCELERATE_DECELERATE_INTERPOLATOR,
-          180L,
-          selectionFactor
+          }
         );
       }
-      selectionAnimator.animateTo(target);
+      selectionAnimator.setAnimatedValue(target);
     } else {
       if (selectionAnimator != null) {
-        selectionAnimator.forceFactor(target);
+        selectionAnimator.setForcedValue(target);
       }
       selectionFactor = target;
     }
@@ -579,7 +578,7 @@ public final class ForumTopicView extends View {
 
   public void clear () {
     if (selectionAnimator != null) {
-      selectionAnimator.forceFactor(0f);
+      selectionAnimator.setForcedValue(0f);
     }
     clearEmoji();
     topic = null;
@@ -598,7 +597,7 @@ public final class ForumTopicView extends View {
   @Override protected void onDetachedFromWindow () {
     selectionFactor = selectionMode ? 1f : 0f;
     if (selectionAnimator != null) {
-      selectionAnimator.forceFactor(selectionFactor);
+      selectionAnimator.setForcedValue(selectionFactor);
     }
     receiver.detach();
     super.onDetachedFromWindow();
