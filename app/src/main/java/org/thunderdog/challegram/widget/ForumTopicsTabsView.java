@@ -772,6 +772,11 @@ public final class ForumTopicsTabsView
       setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
       RippleSupport.setTransparentSelector(this);
       label = new android.widget.TextView(context);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+        // Centered bounds-based layouts allocate font metrics on every draw. Use advance
+        // widths, as on older Android versions, before TextView creates its cached layout.
+        label.setUseBoundsForWidth(false);
+      }
       label.setTypeface(Fonts.getRobotoMedium());
       label.setIncludeFontPadding(false);
       label.setEllipsize(TextUtils.TruncateAt.END);
