@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -40,6 +41,7 @@ import org.thunderdog.challegram.data.ForumTopicPolicy;
 import org.thunderdog.challegram.navigation.HeaderButton;
 import org.thunderdog.challegram.navigation.HeaderView;
 import org.thunderdog.challegram.telegram.ChatListener;
+import org.thunderdog.challegram.telegram.DateChangeListener;
 import org.thunderdog.challegram.telegram.NotificationSettingsListener;
 import org.thunderdog.challegram.telegram.CleanupStartupDelegate;
 import org.thunderdog.challegram.telegram.ForumTopicStore;
@@ -51,6 +53,7 @@ import org.thunderdog.challegram.telegram.TdlibUi;
 import org.thunderdog.challegram.theme.ColorId;
 import org.thunderdog.challegram.theme.Theme;
 import org.thunderdog.challegram.tool.Screen;
+import org.thunderdog.challegram.tool.Views;
 import org.thunderdog.challegram.v.CustomRecyclerView;
 import org.thunderdog.challegram.widget.CircleButton;
 
@@ -66,7 +69,7 @@ import java.util.List;
 public final class ForumTopicsController
   extends RecyclerViewController<ForumTopicsController.Arguments>
   implements ChatListener, CleanupStartupDelegate, NotificationSettingsListener,
-      TdlibCache.SupergroupDataChangeListener {
+      TdlibCache.SupergroupDataChangeListener, DateChangeListener {
   public static final class Arguments {
     public final long chatId;
     public final TdApi.ChatList chatList;
@@ -80,6 +83,22 @@ public final class ForumTopicsController
   private ForumTopicStore.ListSession session;
   private ForumTopicStore.Snapshot snapshot;
   private TopicAdapter adapter;
+  private boolean rowsRefreshPending;
+  private ViewTreeObserver rowsRefreshObserver;
+  private final ViewTreeObserver.OnPreDrawListener rowsRefreshListener = () -> {
+    applyRowsRefresh();
+    return true;
+  };
+  private final View.OnAttachStateChangeListener rowsRefreshAttachListener =
+    new View.OnAttachStateChangeListener() {
+      @Override public void onViewAttachedToWindow (View view) {
+        applyRowsRefresh();
+      }
+
+      @Override public void onViewDetachedFromWindow (View view) {
+        clearRowsRefreshListener();
+      }
+    };
   private String query = "";
   private Object sessionEpoch;
   private volatile Object lifecycleEpoch = new Object();
@@ -215,6 +234,7 @@ public final class ForumTopicsController
     topicUi = new ForumTopicUi(this, getChatId());
     adapter = new TopicAdapter();
     recyclerView.setAdapter(adapter);
+    recyclerView.addOnAttachStateChangeListener(rowsRefreshAttachListener);
     recyclerView.addOnLayoutChangeListener(
       (view, left, top, right, bottom, oldLeft, oldTop,
         oldRight, oldBottom) -> {
@@ -233,6 +253,7 @@ public final class ForumTopicsController
     tdlib.listeners().subscribeToChatUpdates(getChatId(), this);
     tdlib.listeners().subscribeToSettingsUpdates(this);
     tdlib.listeners().addCleanupListener(this);
+    tdlib.context().dateManager().addListener(this);
     TdApi.Chat groupChat = tdlib.chat(getChatId());
     if (groupChat != null && groupChat.type instanceof TdApi.ChatTypeSupergroup) {
       supergroupId = ((TdApi.ChatTypeSupergroup) groupChat.type).supergroupId;
@@ -796,10 +817,61 @@ public final class ForumTopicsController
   }
 
   private void rebindRows () {
-    if (adapter != null) {
-      adapter.notifyItemRangeChanged(0, adapter.getItemCount(), ForumTopicListDiff.CONTENT_PAYLOAD);
+    if (isDestroyed()) {
+      return;
     }
+    rowsRefreshPending = true;
+    applyRowsRefresh();
     updateSelectionHeader();
+  }
+
+  private void applyRowsRefresh () {
+    RecyclerView recycler = getRecyclerView();
+    if (isDestroyed() || !rowsRefreshPending || adapter == null ||
+      recycler == null || recycler.getWindowToken() == null) {
+      return;
+    }
+    // updateRows uses layout positions: wait until structural updates have been consumed.
+    if (recycler.isComputingLayout() || recycler.hasPendingAdapterUpdates() ||
+      recycler.isLayoutRequested()) {
+      if (rowsRefreshObserver == null || !rowsRefreshObserver.isAlive()) {
+        rowsRefreshObserver = recycler.getViewTreeObserver();
+        rowsRefreshObserver.addOnPreDrawListener(rowsRefreshListener);
+      }
+      return;
+    }
+    clearRowsRefreshListener();
+    rowsRefreshPending = false;
+    Views.updateRows(recycler, 0, adapter.getItemCount(), this::bindVisibleRow);
+  }
+
+  private void clearRowsRefreshListener () {
+    if (rowsRefreshObserver != null) {
+      if (rowsRefreshObserver.isAlive()) {
+        rowsRefreshObserver.removeOnPreDrawListener(rowsRefreshListener);
+      } else if (getRecyclerView() != null) {
+        getRecyclerView().getViewTreeObserver().removeOnPreDrawListener(rowsRefreshListener);
+      }
+      rowsRefreshObserver = null;
+    }
+  }
+
+  private void bindVisibleRow (View view) {
+    RecyclerView recycler = getRecyclerView();
+    int position = recycler.getChildAdapterPosition(view);
+    if (position != RecyclerView.NO_POSITION && position < adapter.getItemCount() &&
+      recycler.getChildViewHolder(view).getItemId() == adapter.getItemId(position)) {
+      adapter.bindRow(view, position);
+    }
+  }
+
+  @Override public void onDateChanged () {
+    rebindRows();
+  }
+
+  @Override public void onTimeFormatChanged () {
+    // DateManager has already cleared the shared date/locale format caches.
+    rebindRows();
   }
 
   @Override public void onConfigurationChanged (Configuration configuration) {
@@ -859,6 +931,8 @@ public final class ForumTopicsController
   }
 
   @Override public void destroy () {
+    rowsRefreshPending = false;
+    clearRowsRefreshListener();
     closeSession();
     for (ForumTopicStore.TopicSubscription observer : selectedObservers.values()) {
       observer.close();
@@ -874,6 +948,7 @@ public final class ForumTopicsController
       tdlib.listeners().unsubscribeFromChatUpdates(getChatId(), this);
       tdlib.listeners().unsubscribeFromSettingsUpdates(this);
       tdlib.listeners().removeCleanupListener(this);
+      tdlib.context().dateManager().removeListener(this);
       if (supergroupId != 0) {
         tdlib.cache().unsubscribeFromSupergroupUpdates(supergroupId, this);
       }
@@ -881,6 +956,7 @@ public final class ForumTopicsController
       subscribed = false;
     }
     if (getRecyclerView() != null) {
+      getRecyclerView().removeOnAttachStateChangeListener(rowsRefreshAttachListener);
       getRecyclerView().setAdapter(null);
     }
     super.destroy();
@@ -1043,9 +1119,13 @@ public final class ForumTopicsController
     }
 
     @Override public void onBindViewHolder (RecyclerView.ViewHolder holder, int position) {
-      if (holder.itemView instanceof ForumTopicView) {
-        ((ForumTopicView) holder.itemView).setTopic(topics.get(position));
-        ((ForumTopicView) holder.itemView).setSelection(
+      bindRow(holder.itemView, position);
+    }
+
+    private void bindRow (View view, int position) {
+      if (view instanceof ForumTopicView) {
+        ((ForumTopicView) view).setTopic(topics.get(position));
+        ((ForumTopicView) view).setSelection(
           selection != null &&
             !selection.isEmpty(),
           selection != null &&
@@ -1053,7 +1133,7 @@ public final class ForumTopicsController
           false
         );
       } else {
-        TextView footer = (TextView) holder.itemView;
+        TextView footer = (TextView) view;
         int text = snapshot == null ||
           snapshot.loadingInitial ||
           snapshot.loadingMore ||

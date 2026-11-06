@@ -28,6 +28,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
@@ -55,6 +56,7 @@ import org.thunderdog.challegram.tool.Paints;
 import org.thunderdog.challegram.tool.PorterDuffPaint;
 import org.thunderdog.challegram.tool.Screen;
 import org.thunderdog.challegram.tool.UI;
+import org.thunderdog.challegram.tool.Views;
 import org.thunderdog.challegram.unsorted.Settings;
 import org.thunderdog.challegram.unsorted.AppContext;
 import org.thunderdog.challegram.util.text.Text;
@@ -100,6 +102,12 @@ public final class ForumTopicsTabsView
   private final Paint dividerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Anchor[] orientationAnchors = new Anchor[2];
   private final Runnable settleTask = this::settle;
+  private boolean rowsRefreshPending;
+  private @Nullable ViewTreeObserver rowsRefreshObserver;
+  private final ViewTreeObserver.OnPreDrawListener rowsRefreshListener = () -> {
+    applyRowsRefresh();
+    return true;
+  };
   private ForumTopicsTabsLayout.Parts parts;
   private @Nullable Anchor pendingAnchor;
   private int placement = ForumTabsState.TOP, nextHorizontal = ForumTabsState.BOTTOM;
@@ -395,11 +403,50 @@ public final class ForumTopicsTabsView
     );
   }
 
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "forum-upstream-row-refresh")
   private void refreshRows () {
-    // Payload updates retain the holder and its receiver, including during a placement cycle.
-    adapter.notifyItemRangeChanged(0, adapter.getItemCount(), REBIND);
-    for (TabView row : adapter.rows) {
-      row.refreshPresentation();
+    rowsRefreshPending = true;
+    applyRowsRefresh();
+  }
+
+  private void applyRowsRefresh () {
+    if (destroyed || !rowsRefreshPending || !attached) {
+      return;
+    }
+    // updateRows uses layout positions: wait until structural updates have been consumed.
+    if (list.isComputingLayout() || list.hasPendingAdapterUpdates() || list.isLayoutRequested()) {
+      if (rowsRefreshObserver == null || !rowsRefreshObserver.isAlive()) {
+        rowsRefreshObserver = getViewTreeObserver();
+        rowsRefreshObserver.addOnPreDrawListener(rowsRefreshListener);
+      }
+      return;
+    }
+    clearRowsRefreshListener();
+    rowsRefreshPending = false;
+    Views.updateRows(list, 0, adapter.getItemCount(), this::bindVisibleRow);
+  }
+
+  private void clearRowsRefreshListener () {
+    if (rowsRefreshObserver != null) {
+      ViewTreeObserver observer = rowsRefreshObserver.isAlive() ?
+        rowsRefreshObserver : getViewTreeObserver();
+      observer.removeOnPreDrawListener(rowsRefreshListener);
+      rowsRefreshObserver = null;
+    }
+  }
+
+  private void bindVisibleRow (View view) {
+    if (!(view instanceof TabView)) {
+      return;
+    }
+    TabView row = (TabView) view;
+    if (row.item != null) {
+      int index = adapter.indexOf(row.item.id);
+      if (index >= 0) {
+        row.bind(adapter.items.get(index));
+      } else {
+        row.clear();
+      }
     }
   }
 
@@ -593,6 +640,7 @@ public final class ForumTopicsTabsView
     super.onAttachedToWindow();
     attached = true;
     if (!destroyed) {
+      applyRowsRefresh();
       onThemeInvalidate(false);
       scheduleSettle();
     }
@@ -601,6 +649,7 @@ public final class ForumTopicsTabsView
   @Override protected void onDetachedFromWindow () {
     pendingAnchor = captureAnchor();
     attached = false;
+    clearRowsRefreshListener();
     list.removeCallbacks(settleTask);
     super.onDetachedFromWindow();
   }
@@ -610,6 +659,8 @@ public final class ForumTopicsTabsView
       return;
     }
     destroyed = true;
+    rowsRefreshPending = false;
+    clearRowsRefreshListener();
     list.removeCallbacks(settleTask);
     list.stopScroll();
     Lang.removeLanguageListener(this);

@@ -27,6 +27,7 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -54,6 +55,7 @@ import org.thunderdog.challegram.navigation.NavigationController;
 import org.thunderdog.challegram.navigation.ViewController;
 import org.thunderdog.challegram.support.ViewSupport;
 import org.thunderdog.challegram.telegram.ChatListener;
+import org.thunderdog.challegram.telegram.DateChangeListener;
 import org.thunderdog.challegram.telegram.ForumTopicStore;
 import org.thunderdog.challegram.telegram.Tdlib;
 import org.thunderdog.challegram.telegram.TdlibCache;
@@ -66,6 +68,7 @@ import org.thunderdog.challegram.tool.DrawAlgorithms;
 import org.thunderdog.challegram.tool.Fonts;
 import org.thunderdog.challegram.tool.Paints;
 import org.thunderdog.challegram.tool.Screen;
+import org.thunderdog.challegram.tool.Views;
 import org.thunderdog.challegram.util.text.Text;
 import org.thunderdog.challegram.util.text.TextColorSetThemed;
 
@@ -82,7 +85,7 @@ import tgx.td.Td;
 public final class ForumTopicEditController
   extends ViewController<ForumTopicEditController.Arguments>
   implements Menu, ChatListener, TdlibCache.SupergroupDataChangeListener,
-    TdlibCache.MyUserDataChangeListener {
+    TdlibCache.MyUserDataChangeListener, DateChangeListener {
   private static final long PICKER_TIMEOUT_MS = 12000;
 
   public static final class Arguments {
@@ -142,6 +145,22 @@ public final class ForumTopicEditController
   private RecyclerView recycler;
   private GridLayoutManager layoutManager;
   private EditorAdapter adapter;
+  private boolean rowsRefreshPending;
+  private ViewTreeObserver rowsRefreshObserver;
+  private final ViewTreeObserver.OnPreDrawListener rowsRefreshListener = () -> {
+    applyRowsRefresh();
+    return true;
+  };
+  private final View.OnAttachStateChangeListener rowsRefreshAttachListener =
+    new View.OnAttachStateChangeListener() {
+      @Override public void onViewAttachedToWindow (View view) {
+        applyRowsRefresh();
+      }
+
+      @Override public void onViewDetachedFromWindow (View view) {
+        clearRowsRefreshListener();
+      }
+    };
   private LinearLayout content, pickerHeader, sections, colors, results;
   private HorizontalScrollView colorStrip;
   private EditText nameInput, searchInput;
@@ -249,6 +268,7 @@ public final class ForumTopicEditController
     createForm();
     adapter = new EditorAdapter();
     recycler.setAdapter(adapter);
+    recycler.addOnAttachStateChangeListener(rowsRefreshAttachListener);
     recycler.addOnLayoutChangeListener(
       (v, l, t, r, b, ol, ot, or, ob) -> {
         int spans =
@@ -263,6 +283,7 @@ public final class ForumTopicEditController
     );
     tdlib.listeners().subscribeToChatUpdates(getChatId(), this);
     tdlib.cache().addMyUserListener(this);
+    tdlib.context().dateManager().addListener(this);
     TdApi.Chat chat = tdlib.chat(getChatId());
     if (chat != null && chat.type instanceof TdApi.ChatTypeSupergroup) {
       supergroupId = ((TdApi.ChatTypeSupergroup) chat.type).supergroupId;
@@ -744,11 +765,56 @@ public final class ForumTopicEditController
     for (View section : sectionButtons) {
       section.setEnabled(editable);
     }
-    if (adapter != null && adapter.getItemCount() > 1) {
-      adapter.notifyItemRangeChanged(1, adapter.getItemCount() - 1);
-    }
+    refreshIconRows();
     renderPickerStatus();
     restoreFocusIfReady();
+  }
+
+  private void refreshIconRows () {
+    if (isDestroyed() || adapter == null || form == null) {
+      return;
+    }
+    rowsRefreshPending = true;
+    applyRowsRefresh();
+  }
+
+  private void applyRowsRefresh () {
+    if (isDestroyed() || !rowsRefreshPending || adapter == null || form == null ||
+      recycler == null || recycler.getWindowToken() == null) {
+      return;
+    }
+    // updateRows uses layout positions: wait until structural updates have been consumed.
+    if (recycler.isComputingLayout() || recycler.hasPendingAdapterUpdates() ||
+      recycler.isLayoutRequested()) {
+      if (rowsRefreshObserver == null || !rowsRefreshObserver.isAlive()) {
+        rowsRefreshObserver = recycler.getViewTreeObserver();
+        rowsRefreshObserver.addOnPreDrawListener(rowsRefreshListener);
+      }
+      return;
+    }
+    clearRowsRefreshListener();
+    rowsRefreshPending = false;
+    // Row 0 owns the form and its focused inputs; only icon rows need rebinding.
+    Views.updateRows(recycler, 1, adapter.getItemCount(), this::bindVisibleRow);
+  }
+
+  private void clearRowsRefreshListener () {
+    if (rowsRefreshObserver != null) {
+      if (rowsRefreshObserver.isAlive()) {
+        rowsRefreshObserver.removeOnPreDrawListener(rowsRefreshListener);
+      } else if (recycler != null) {
+        recycler.getViewTreeObserver().removeOnPreDrawListener(rowsRefreshListener);
+      }
+      rowsRefreshObserver = null;
+    }
+  }
+
+  private void bindVisibleRow (View view) {
+    int position = recycler.getChildAdapterPosition(view);
+    if (view instanceof IconCell && position >= 1 && position < adapter.getItemCount() &&
+      recycler.getChildViewHolder(view).getItemId() == adapter.getItemId(position)) {
+      adapter.bindIcon((IconCell) view, position);
+    }
   }
 
   private void submit () {
@@ -1030,26 +1096,58 @@ public final class ForumTopicEditController
     for (int i = 0; i < candidates.size(); i++) {
       TdApi.ForumTopicInfo candidate = candidates.get(i);
       final int topicId = candidate.forumTopicId;
-      String date = Lang.getString(
-        R.string.format_dateTime,
-        Lang.getDate(candidate.creationDate, TimeUnit.SECONDS),
-        Lang.time(candidate.creationDate, TimeUnit.SECONDS)
-      );
-      results.addView(
-        button(
-          Lang.getString(
-            R.string.format_nameAndDate,
-            Lang.getString(R.string.ForumEditorOpenMatch, i + 1),
-            date
-          ),
-          () -> {
+      TextView button = button(
+        candidateText(candidate, i),
+        () -> {
           if (form.resolveToExisting(topicId)) {
             finishIfReady();
           }
         }
-        )
       );
+      button.setTag(candidate);
+      results.addView(button);
     }
+  }
+
+  private String candidateText (TdApi.ForumTopicInfo candidate, int index) {
+    String date = Lang.getString(
+      R.string.format_dateTime,
+      Lang.getDate(candidate.creationDate, TimeUnit.SECONDS),
+      Lang.time(candidate.creationDate, TimeUnit.SECONDS)
+    );
+    return Lang.getString(
+      R.string.format_nameAndDate,
+      Lang.getString(R.string.ForumEditorOpenMatch, index + 1),
+      date
+    );
+  }
+
+  private void refreshCandidateTexts () {
+    if (isDestroyed() || results == null) {
+      return;
+    }
+    // Keep the existing buttons, click targets and focus; never restart reconciliation here.
+    for (int i = 1; i < results.getChildCount(); i++) {
+      View view = results.getChildAt(i);
+      if (view instanceof TextView && view.getTag() instanceof TdApi.ForumTopicInfo) {
+        ((TextView) view).setText(candidateText((TdApi.ForumTopicInfo) view.getTag(), i - 1));
+      }
+    }
+  }
+
+  @Override public void onDateChanged () {
+    refreshCandidateTexts();
+  }
+
+  @Override public void onTimeFormatChanged () {
+    // DateManager has already cleared the shared date/locale format caches.
+    refreshCandidateTexts();
+  }
+
+  @Override public void handleLanguagePackEvent (int event, int arg1) {
+    super.handleLanguagePackEvent(event, arg1);
+    refreshCandidateTexts();
+    refreshIconRows();
   }
 
   private void loadCatalog () {
@@ -1493,6 +1591,11 @@ public final class ForumTopicEditController
   }
 
   @Override public void destroy () {
+    rowsRefreshPending = false;
+    clearRowsRefreshListener();
+    if (recycler != null) {
+      recycler.removeOnAttachStateChangeListener(rowsRefreshAttachListener);
+    }
     if (topicSubscription != null) {
       topicSubscription.close();
     }
@@ -1502,9 +1605,11 @@ public final class ForumTopicEditController
     if (subscribed) {
       tdlib.listeners().unsubscribeFromChatUpdates(getChatId(), this);
       tdlib.cache().removeMyUserListener(this);
+      tdlib.context().dateManager().removeListener(this);
       if (supergroupId != 0) {
         tdlib.cache().unsubscribeFromSupergroupUpdates(supergroupId, this);
       }
+      subscribed = false;
     }
     ++pickerGeneration;
     ++catalogGeneration;
@@ -1596,7 +1701,10 @@ public final class ForumTopicEditController
       if (position == 0) {
         return;
       }
-      IconCell cell = (IconCell) holder.itemView;
+      bindIcon((IconCell) holder.itemView, position);
+    }
+
+    private void bindIcon (IconCell cell, int position) {
       long emojiId = 0;
       String description = Lang.getString(R.string.ForumEditorRegular);
       if (position > 1) {
