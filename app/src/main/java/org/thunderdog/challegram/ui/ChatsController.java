@@ -3068,6 +3068,11 @@ public class ChatsController extends TelegramViewController<ChatsController.Argu
   }
 
   @Override
+  public void onTimeFormatChanged () {
+    onDateChanged();
+  }
+
+  @Override
   public void onMessageSendSucceeded (final TdApi.Message message, final long oldMessageId) {
     runOnUiThreadOptional(() -> {
       if (chatsView != null) {

@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
+import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -251,10 +252,18 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
 
   private CancellableRunnable lastAccountSwitchTask;
 
+  // Checked only when it may have changed, e.g. on resume, since asking the system is slow
+  private @Tdlib.ResolvableProblem int resolvableProblem = Tdlib.ResolvableProblem.NONE;
+
   private void updateCounter () {
+    resolvableProblem = currentTdlib().findResolvableProblem();
+    updateCounterBadge();
+  }
+
+  private void updateCounterBadge () {
     Tdlib tdlib = currentTdlib();
     boolean animated = getActivityState() == UI.State.RESUMED;
-    @Tdlib.ResolvableProblem int problemType = tdlib.findResolvableProblem();
+    @Tdlib.ResolvableProblem int problemType = resolvableProblem;
     BackHeaderButton backButton = navigation.getHeaderView().getBackButton();
     if (problemType != Tdlib.ResolvableProblem.NONE) {
       @ColorId int colorId;
@@ -282,9 +291,18 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     updateCounter();
   }
 
+  private boolean isCounterFramePosted;
+  private final Choreographer.FrameCallback counterFrame = frameTimeNanos -> {
+    isCounterFramePosted = false;
+    updateCounterBadge();
+  };
+
   @Override
   public void onTotalUnreadCounterChanged (@NonNull TdApi.ChatList chatList, boolean isReset) {
-    updateCounter();
+    if (!isCounterFramePosted) {
+      isCounterFramePosted = true;
+      Choreographer.getInstance().postFrameCallback(counterFrame);
+    }
   }
 
   @Override
@@ -1558,7 +1576,7 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     // Log.e("%s", Strings.getHexColor(U.compositeColor(Theme.headerColor(), Theme.getColor(ColorId.statusBar)), false));
     tdlib.contacts().makeSilentPermissionCheck(this);
     tdlib.context().global().notifyResolvableProblemAvailabilityMightHaveChanged();
-    tdlib.context().dateManager().checkCurrentDate();
+    tdlib.context().dateManager().checkDateAndTimeFormat();
     UI.startNotificationService();
     TemporaryNotification.hide(this);
   }
@@ -1568,6 +1586,7 @@ public class MainActivity extends BaseActivity implements GlobalAccountListener,
     TdlibManager.instance().global().removeAccountListener(this);
     TdlibManager.instance().global().removeCountersListener(this);
     TdlibManager.instance().global().removeResolvableProblemAvailabilityListener(this);
+    Choreographer.getInstance().removeFrameCallback(counterFrame);
     destroyMessageControllers();
 
     Log.i("MainActivity.onDestroy");
