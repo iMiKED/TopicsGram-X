@@ -276,7 +276,9 @@ public final class ForumNavigationContainer
       rail.setSelectedChat(current.getChatId());
       rail.updateTheme();
     }
-    requestLayout();
+    if (session || rail != null || !topicViews.isEmpty()) {
+      requestLayout();
+    }
   }
 
   // region @MadeByLLM("gpt-6-astra", id = "forum-topics", ref = "PR #1095")
