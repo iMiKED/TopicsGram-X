@@ -14,6 +14,8 @@
  */
 package org.thunderdog.challegram.core;
 
+import android.os.Build;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -81,7 +83,20 @@ public final class ExecutorSerialQueue extends SerialQueue {
       this.thread = thread;
       return thread;
     });
-    executor.setRemoveOnCancelPolicy(true);
+    // region @MadeByLLM("gpt-5", id = "legacy-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      executor.setRemoveOnCancelPolicy(true);
+    }
+    // endregion
+  }
+
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-api-compat")
+  private void cancelWork (Work work) {
+    work.future.cancel(false);
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+      // ScheduledThreadPoolExecutor queues the RunnableScheduledFuture returned by schedule().
+      executor.remove((Runnable) work.future);
+    }
   }
 
   private void schedule (Work work, long delayMillis) {
@@ -116,7 +131,7 @@ public final class ExecutorSerialQueue extends SerialQueue {
         Work waitingWork = iterator.next();
         if (waitingWork.runnable == work) {
           iterator.remove();
-          waitingWork.future.cancel(false);
+          cancelWork(waitingWork); // @MadeByLLM("gpt-5")
         }
       }
     }
@@ -130,7 +145,7 @@ public final class ExecutorSerialQueue extends SerialQueue {
         Work waitingWork = iterator.next();
         if (waitingWork.matches(what, obj)) {
           iterator.remove();
-          waitingWork.future.cancel(false);
+          cancelWork(waitingWork); // @MadeByLLM("gpt-5")
         }
       }
     }
@@ -165,14 +180,14 @@ public final class ExecutorSerialQueue extends SerialQueue {
           Work waitingWork = iterator.next();
           if (waitingWork.future.getDelay(TimeUnit.NANOSECONDS) > 0) {
             iterator.remove();
-            waitingWork.future.cancel(false);
+            cancelWork(waitingWork); // @MadeByLLM("gpt-5")
           }
         }
       } else {
         // As Looper.quit(), without interrupting the work that runs
         executor.shutdown();
         for (Work waitingWork : waiting) {
-          waitingWork.future.cancel(false);
+          cancelWork(waitingWork); // @MadeByLLM("gpt-5")
         }
         waiting.clear();
       }

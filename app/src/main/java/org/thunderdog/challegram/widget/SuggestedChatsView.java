@@ -22,6 +22,7 @@ import android.view.View;
 
 import androidx.annotation.Dimension;
 import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
 
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.R;
@@ -104,9 +105,11 @@ public final class SuggestedChatsView extends View implements TGAvatars.Callback
 
   @Override
   public void onSizeChanged () {
-    if (isLaidOut()) {
+    // region @MadeByLLM("gpt-5", id = "legacy-api-compat")
+    if (ViewCompat.isLaidOut(this)) {
       text.changeMaxWidth(getTextMaxWidth());
     }
+    // endregion
     invalidate();
   }
 
@@ -141,9 +144,11 @@ public final class SuggestedChatsView extends View implements TGAvatars.Callback
   }
 
   private int getTextMaxWidth () {
-    if (!isLaidOut()) {
+    // region @MadeByLLM("gpt-5", id = "legacy-api-compat")
+    if (!ViewCompat.isLaidOut(this)) {
       return Integer.MAX_VALUE;
     }
+    // endregion
     return getWidth() - Math.round(avatars.getAnimatedWidth()) - Screen.dp(54);
   }
 }

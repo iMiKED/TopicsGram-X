@@ -16,6 +16,7 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import me.vkryl.android.LocaleUtils;
 import me.vkryl.core.DateUtils;
 import me.vkryl.core.StringUtils;
 import me.vkryl.core.lambda.RunnableData;
@@ -114,7 +115,9 @@ public class DateManager {
   private String timeFormat = currentTimeFormat();
 
   private static String currentTimeFormat () {
-    String locale = Locale.getDefault().toLanguageTag();
+    // region @MadeByLLM("gpt-5", id = "legacy-api-compat")
+    String locale = LocaleUtils.toBcp47Language(Locale.getDefault());
+    // endregion
     return TimeZone.getDefault().getID() + " " + UI.needAmPm() + " " + locale;
   }
 
