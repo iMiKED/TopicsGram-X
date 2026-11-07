@@ -275,9 +275,11 @@ public class WatchDog {
     }
   }
 
-  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-lollipop-api-contracts")
   private static boolean filter (NetworkInfo info) {
-    return info.isConnectedOrConnecting() && info.getType() != ConnectivityManager.TYPE_VPN;
+    return info.isConnectedOrConnecting() &&
+      !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP &&
+        info.getType() == ConnectivityManager.TYPE_VPN);
   }
 
   public void letsHelpDoge (boolean dataSaverOnly) {

@@ -16,6 +16,7 @@ package org.thunderdog.challegram.ui.camera.legacy;
 
 import android.content.Context;
 import android.graphics.SurfaceTexture;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -27,8 +28,11 @@ import org.thunderdog.challegram.config.Config;
 import org.thunderdog.challegram.core.BaseThread;
 import org.thunderdog.challegram.loader.ImageGalleryFile;
 import org.thunderdog.challegram.player.RoundVideoRecorder;
+import org.thunderdog.challegram.tool.UI;
 import org.thunderdog.challegram.ui.camera.CameraFeatures;
 import org.thunderdog.challegram.ui.camera.CameraManager;
+
+import java.util.concurrent.TimeUnit;
 
 import me.vkryl.core.lambda.RunnableData;
 
@@ -97,7 +101,13 @@ public abstract class CameraApi {
   protected abstract void onPreviewSizeChanged (int newWidth, int newHeight);
 
   private boolean isCameraBusy () {
-    return isVideoCapturing || (roundRecorder != null && roundRecorder.isCapturing());
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+      return isVideoCapturing || (roundRecorder != null && roundRecorder.isCapturing());
+    } else {
+      return isVideoCapturing;
+    }
+    // endregion
   }
 
   /**
@@ -147,7 +157,9 @@ public abstract class CameraApi {
       return;
     }
 
-    if (roundRecorder != null) {
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && roundRecorder != null) {
+    // endregion
       if (roundRecorder.canSwitchToNewCamera()) {
         onNextCameraSourceRequested();
       }
@@ -714,7 +726,11 @@ public abstract class CameraApi {
       sendMessage(ACTION_OPEN_CAMERA_IF_NEEDED, recorder);
       return;
     }
-    if (this.roundRecorder == recorder && isCameraActive && !cameraOpened) {
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && recorder != null &&
+      this.roundRecorder == recorder && isCameraActive && !cameraOpened &&
+      manager.useRoundRender()) {
+    // endregion
       try {
         openCamera(recorder.getCameraTexture());
         cameraOpened = true;
@@ -750,7 +766,9 @@ public abstract class CameraApi {
       sendMessage(ACTION_DESTROY_ROUND_RENDERER);
       return;
     }
-    if (roundRecorder != null) {
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && roundRecorder != null) {
+    // endregion
       roundRecorder.destroy();
       roundRecorder = null;
     }
@@ -775,7 +793,10 @@ public abstract class CameraApi {
             if (surface == null) {
               throw new NullPointerException();
             }
-            if (manager.useRoundRender()) {
+            // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 &&
+              manager.useRoundRender()) {
+            // endregion
               if (roundRecorder == null) {
                 roundRecorder = new RoundVideoRecorder(this, surface, mSurfaceWidth, mSurfaceHeight);
                 roundRecorder.setPreviewSizes(getCameraOutputWidth(), getCameraOutputHeight(), calculateDisplayOrientation());
@@ -801,7 +822,9 @@ public abstract class CameraApi {
         } catch (Throwable t) {
           Log.w(Log.TAG_CAMERA, "Cannot close camera, but we ignore it.", t);
         }
-        if (roundRecorder != null) {
+        // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && roundRecorder != null) {
+        // endregion
           roundRecorder.onCameraClose();
         }
         cameraOpened = false;
@@ -820,12 +843,22 @@ public abstract class CameraApi {
   private RoundVideoRecorder roundRecorder;
 
   public final void startRoundVideoCapture (String key, RoundVideoRecorder.Delegate delegate, String outputPath) {
-    if (!checkCameraThread()) {
-      sendMessage(ACTION_START_ROUND_CAPTURE, new Object[] {key, delegate, outputPath});
-      return;
-    }
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    // RoundVideoRecorder.Delegate also inherits the recorder's API 18 contract.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+      if (!checkCameraThread()) {
+        sendMessage(ACTION_START_ROUND_CAPTURE, new Object[] {key, delegate, outputPath});
+        return;
+      }
 
-    roundRecorder.startCapture(delegate, key, outputPath);
+      if (roundRecorder != null && manager.useRoundRender() && isCameraActive) {
+        roundRecorder.startCapture(delegate, key, outputPath);
+      } else {
+        // A queued start may outlive the renderer; use its failure callback.
+        UI.post(() -> delegate.onVideoRecordingFinished(key, -1, 0, TimeUnit.MILLISECONDS));
+      }
+    }
+    // endregion
   }
 
   public final void finishOrCancelRoundVideoCapture (String key, boolean saveResult) {
@@ -834,6 +867,10 @@ public abstract class CameraApi {
       return;
     }
 
-    roundRecorder.finishCapture(key, saveResult);
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && roundRecorder != null) {
+      roundRecorder.finishCapture(key, saveResult);
+    }
+    // endregion
   }
 }

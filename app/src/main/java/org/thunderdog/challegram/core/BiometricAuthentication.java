@@ -36,7 +36,6 @@ import me.vkryl.core.BitwiseUtils;
 import me.vkryl.core.StringUtils;
 import me.vkryl.core.lambda.CancellableRunnable;
 
-@RequiresApi(Build.VERSION_CODES.M)
 public class BiometricAuthentication {
   public static final boolean ONLY_FINGERPRINT = Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
 
@@ -149,6 +148,10 @@ public class BiometricAuthentication {
   private static CancellationSignal pendingSignal;
   private static long lastTimestamp;
 
+  // region @MadeByLLM("gpt-5", id = "biometric-api-contract")
+  // Callers must guard this prompt path; availability queries also serve pre-23 devices.
+  @RequiresApi(Build.VERSION_CODES.M)
+  // endregion
   public static void authenticate (BaseActivity context, CharSequence title, CharSequence negativeButtonText, boolean strong, Callback callback) {
     CancellationSignal signal = new CancellationSignal();
     BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()

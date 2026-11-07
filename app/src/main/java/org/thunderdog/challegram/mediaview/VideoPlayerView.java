@@ -27,6 +27,7 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.media3.common.C;
 import androidx.media3.common.Effect;
 import androidx.media3.common.PlaybackException;
@@ -101,7 +102,10 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
       updateTimes();
       return false;
     });
-    this.enableCropping = !APPLY_CROP_EFFECTS && enableCropping;
+    // region @MadeByLLM("gpt-5", id = "legacy-lollipop-api-contracts")
+    this.enableCropping = enableCropping &&
+      !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && APPLY_CROP_EFFECTS);
+    // endregion
     this.errorHandler = onError;
   }
 
@@ -231,13 +235,15 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
         this.parentView.addView(targetView, addIndex);
       }
     }
+    // region @MadeByLLM("gpt-5", id = "legacy-lollipop-api-contracts")
     if (enableCropping) {
       croppedLayout.setCropState(mediaItem.getCropState());
-    } else if (APPLY_CROP_EFFECTS) {
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && APPLY_CROP_EFFECTS) {
       CropState cropState = mediaItem.getCropState();
       applyEffects(player, cropState, false);
       this.appliedEffectsId = makeEffectsId(cropState);
     }
+    // endregion
     this.originalSource = source;
     this.trimStartUs = this.trimEndUs = -1;
     if (mediaItem.needTrim()) {
@@ -297,6 +303,8 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
     pendingLsAlert = UI.getContext(context).showAlert(b);
   }
 
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-lollipop-api-contracts")
+  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
   private static String makeEffectsId (@Nullable CropState cropState) {
     if (cropState == null) {
       return null;
@@ -322,6 +330,8 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
   // FIXME[exoplayer]: There are at least two render bugs in media3 that might go away with future versions.
   public static final boolean APPLY_CROP_EFFECTS = false; // Config.MODERN_VIDEO_TRANSCODING_ENABLED
 
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-lollipop-api-contracts")
+  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
   private static void applyEffects (@NonNull ExoPlayer player, @Nullable CropState cropState, boolean needEmpty) {
     List<Effect> effects = new ArrayList<>();
     if (cropState != null) {
@@ -340,9 +350,11 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
   public void checkCrop () {
     if (currentItem != null) {
       CropState cropState = currentItem.getCropState();
+      // region @MadeByLLM("gpt-5", id = "legacy-lollipop-api-contracts")
       if (enableCropping) {
         croppedLayout.setCropState(cropState);
-      } else if (APPLY_CROP_EFFECTS && !isDetached) {
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP &&
+                 APPLY_CROP_EFFECTS && !isDetached) {
         String newId = makeEffectsId(cropState);
         if (player != null && !StringUtils.equalsOrBothEmpty(this.appliedEffectsId, newId)) {
           applyEffects(player, cropState, true);
@@ -351,6 +363,7 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
           requestLayout();
         }
       }
+      // endregion
     }
   }
 

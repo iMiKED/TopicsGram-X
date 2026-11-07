@@ -33,7 +33,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -126,7 +125,7 @@ public class MediaBottomFilesController extends MediaBottomBaseController<Void> 
     }
   }
 
-  @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
+  @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-lollipop-api-contracts")
   private void showSystemPicker (boolean forceDownloads) {
     RunnableData<Set<Uri>> callback = uris -> {
       if (uris != null && !uris.isEmpty()) {
@@ -150,8 +149,10 @@ public class MediaBottomFilesController extends MediaBottomBaseController<Void> 
     final Intent intent = new Intent(Intent.ACTION_GET_CONTENT)
       .addCategory(Intent.CATEGORY_OPENABLE)
       .setType(musicOnly ? "audio/*" : "*/*")
-      .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
       .putExtra("android.content.extra.SHOW_ADVANCED", true);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+      intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+    }
     context.putActivityResultHandler(Intents.ACTIVITY_RESULT_FILES, (requestCode, resultCode, data) -> {
       if (resultCode == Activity.RESULT_OK) {
         // Use a LinkedHashSet to maintain any ordering that may be

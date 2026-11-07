@@ -18,6 +18,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -123,11 +124,16 @@ public class CameraManagerLegacy extends CameraManagerTexture {
 
   public boolean useRoundRender () {
     synchronized (this) {
-      return useRoundRender;
+      // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+      return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && useRoundRender;
+      // endregion
     }
   }
 
   public void setUseRoundRender (boolean useRoundRender) {
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    useRoundRender = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 && useRoundRender;
+    // endregion
     synchronized (this) {
       if (this.useRoundRender != useRoundRender) {
         this.useRoundRender = useRoundRender;
@@ -163,7 +169,10 @@ public class CameraManagerLegacy extends CameraManagerTexture {
    * */
   public boolean requestRoundVideoCapture (String key, RoundVideoRecorder.Delegate delegate, String outputPath) {
     Log.i(Log.TAG_CAMERA, "requestRoundCapture, key: %s", key);
-    if (api.isVideoRecordSupported()) {
+    // region @MadeByLLM("gpt-5", id = "camera-api-compat")
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2 &&
+      useRoundRender() && api.isVideoRecordSupported()) {
+    // endregion
       api.startRoundVideoCapture(key, delegate, outputPath);
       return true;
     }
