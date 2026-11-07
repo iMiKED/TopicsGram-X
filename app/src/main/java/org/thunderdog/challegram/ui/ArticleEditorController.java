@@ -246,11 +246,30 @@ public final class ArticleEditorController extends ViewController<ArticleEditorC
     fields.setSelectionView(selection); page.addView(selection, new FrameLayout.LayoutParams(-1, -1));
     ImageView back = ArticleEditorPopup.icon(context, R.drawable.baseline_arrow_back_24, R.string.ArticleBack, this::navigateBack);
     FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(Screen.dp(44), Screen.dp(44), Gravity.TOP | Gravity.LEFT); backParams.setMargins(Screen.dp(8), Screen.dp(8), 0, 0); page.addView(back, backParams);
-    LinearLayout historyBar = new LinearLayout(context); historyBar.setBackground(ArticleEditorPopup.background(ArticleEditorPopup.surfaceColor(), 24));
-    undoButton = icon(historyBar, R.drawable.article_iv_undo_24, R.string.ArticleUndo, () -> restore(history.undo()), 41);
-    redoButton = icon(historyBar, R.drawable.article_iv_redo_24, R.string.ArticleRedo, () -> restore(history.redo()), 41);
-    FrameLayout.LayoutParams historyParams = new FrameLayout.LayoutParams(Screen.dp(82), Screen.dp(44), Gravity.TOP | Gravity.RIGHT); historyParams.setMargins(0, Screen.dp(8), Screen.dp(8), 0); page.addView(historyBar, historyParams);
-    historyBar.setOnLongClickListener(v -> { preview(); return true; });
+    LinearLayout historyBar = new LinearLayout(context);
+    historyBar.setBackground(ArticleEditorPopup.background(ArticleEditorPopup.surfaceColor(), 24));
+    undoButton = icon(
+      historyBar,
+      R.drawable.article_iv_undo_24,
+      R.string.ArticleUndo,
+      () -> restore(history.undo()),
+      44
+    );
+    redoButton = icon(
+      historyBar,
+      R.drawable.article_iv_redo_24,
+      R.string.ArticleRedo,
+      () -> restore(history.redo()),
+      44
+    );
+    icon(historyBar, R.drawable.baseline_visibility_24, R.string.ArticlePreview, this::preview, 44);
+    FrameLayout.LayoutParams historyParams = new FrameLayout.LayoutParams(
+      Screen.dp(132),
+      Screen.dp(44),
+      Gravity.TOP | Gravity.RIGHT
+    );
+    historyParams.setMargins(0, Screen.dp(8), Screen.dp(8), 0);
+    page.addView(historyBar, historyParams);
     editingArticle = editing;
     bottom = new LinearLayout(context); bottom.setGravity(Gravity.CENTER_VERTICAL); bottom.setPadding(Screen.dp(8), Screen.dp(8), Screen.dp(8), Screen.dp(8));
     root.addView(bottom, new LinearLayout.LayoutParams(-1, Screen.dp(60)));
