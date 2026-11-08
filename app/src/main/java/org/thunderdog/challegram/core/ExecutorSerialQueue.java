@@ -18,6 +18,7 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
  * SerialQueue on ScheduledThreadPoolExecutor of one thread: a heap by time and order of sending.
  * Work that waits is also kept in a set, so that it can be cancelled and found
  */
+@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 public final class ExecutorSerialQueue extends SerialQueue {
   private final ScheduledThreadPoolExecutor executor;
   private final HashSet<Work> waiting = new HashSet<>();

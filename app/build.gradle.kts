@@ -24,6 +24,20 @@ plugins {
 val config = tgxConfig.config.get()
 // A separate, account-isolated install for finite synthetic UI instrumentation, never a feature flag.
 val stage8Synthetic = providers.gradleProperty("stage8.synthetic").map { it.toBoolean() }.getOrElse(false)
+val customGoogleServices = config.googleServicesFile?.let { rootDir.resolve(it) }
+val usedGoogleServices = customGoogleServices ?: file("google-services.json")
+if (customGoogleServices != null && !customGoogleServices.exists()) {
+  fatal("google_services.file: ${customGoogleServices.path} doesn't exist")
+}
+val hasFirebaseMessaging = (customGoogleServices != null || !config.isExperimentalBuild) &&
+  hasGoogleServicesClient(usedGoogleServices, config.applicationId)
+if (!hasFirebaseMessaging && customGoogleServices != null) {
+  val problem = "${customGoogleServices.path} has no client of ${config.applicationId}"
+  if (config.applicationId == "org.thunderdog.challegram") {
+    fatal("$problem: notifications in the app won't work")
+  }
+  logger.warn("$problem: pushes of Firebase are off")
+}
 val useLegacyPackaging = tgxConfig.useLegacyPackaging.get()
 val useLegacyNdk = tgxConfig.useLegacyNdk.get()
 val globalAbiFilters = tgxConfig.abiFilters.get()
@@ -788,12 +802,21 @@ android {
       variant.resValues.put(variant.makeResValueKey("string", "content_authority"), variant.applicationId.map { applicationId ->
         ResValue(AppVariantIdentity.contentAuthority(applicationId), "Final variant application ID")
       })
+      // Resolve the final ID: Debug and synthetic Checks must not reuse the Release Firebase client.
+      val firebaseEnabled = !stage8Synthetic && (customGoogleServices != null || !config.isExperimentalBuild) &&
+        hasGoogleServicesClient(usedGoogleServices, variant.applicationId.get())
+      variant.buildConfigFields.put("FIREBASE_MESSAGING_ENABLED", BuildConfigField("boolean", firebaseEnabled, "Final variant Firebase client"))
+      if (firebaseEnabled && customGoogleServices != null) {
+        googleServicesValues(customGoogleServices, variant.applicationId.get()).forEach { (name, value) ->
+          variant.resValues.put(variant.makeResValueKey("string", name), ResValue(value, "Final variant Firebase client"))
+        }
+      }
       if (!config.isExperimentalBuild && !stage8Synthetic) {
         val validateVariantApiTokens = tasks.register<ValidateApiTokensTask>("validate${variant.name.uppercaseFirstChar()}ApiTokens") {
           group = "Setup"
           description = "Validates the Firebase Android client for ${variant.name}"
           applicationId.set(variant.applicationId)
-          googleServicesJson.set(layout.projectDirectory.file("google-services.json"))
+          googleServicesJson.fileValue(usedGoogleServices)
         }
         variant.lifecycleTasks.registerPreBuild(validateVariantApiTokens)
         validateApiTokens.configure { dependsOn(validateVariantApiTokens) }
@@ -1287,7 +1310,9 @@ dependencies {
 }
 
 if (!config.isExperimentalBuild && !stage8Synthetic) {
-  apply(plugin = libs.plugins.google.services.get().pluginId)
+  if (customGoogleServices == null) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+  }
   if (config.isHuaweiBuild) {
     apply(plugin = libs.huawei.agconnect.get().group)
   }

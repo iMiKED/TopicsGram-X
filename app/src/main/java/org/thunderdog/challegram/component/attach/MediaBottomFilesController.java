@@ -146,6 +146,7 @@ public class MediaBottomFilesController extends MediaBottomBaseController<Void> 
         });
       }
     };
+    @SuppressWarnings("InlinedApi")
     final Intent intent = new Intent(Intent.ACTION_GET_CONTENT)
       .addCategory(Intent.CATEGORY_OPENABLE)
       .setType(musicOnly ? "audio/*" : "*/*")

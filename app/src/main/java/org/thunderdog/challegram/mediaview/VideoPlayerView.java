@@ -25,6 +25,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.ChecksSdkIntAtLeast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -328,6 +329,7 @@ public class VideoPlayerView implements Player.Listener, CallManager.CurrentCall
   }
 
   // FIXME[exoplayer]: There are at least two render bugs in media3 that might go away with future versions.
+  @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.LOLLIPOP)
   public static final boolean APPLY_CROP_EFFECTS = false; // Config.MODERN_VIDEO_TRANSCODING_ENABLED
 
   @me.vkryl.annotation.MadeByLLM(value = "gpt-5", id = "legacy-lollipop-api-contracts")
