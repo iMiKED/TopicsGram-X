@@ -4,6 +4,7 @@ package org.thunderdog.challegram.data;
 import android.graphics.Canvas;
 import android.view.MotionEvent;
 import android.view.View;
+import androidx.annotation.Nullable;
 import org.drinkless.tdlib.TdApi;
 import org.thunderdog.challegram.loader.ComplexReceiver;
 import org.thunderdog.challegram.loader.Receiver;
@@ -12,11 +13,16 @@ import org.thunderdog.challegram.tool.Paints;
 import org.thunderdog.challegram.tool.Screen;
 import org.thunderdog.challegram.ui.ListItem;
 import org.thunderdog.challegram.util.DrawableProvider;
+import org.thunderdog.challegram.util.text.Text;
 import org.thunderdog.challegram.util.text.TextColorSets;
+import org.thunderdog.challegram.util.text.TextMedia;
 import org.thunderdog.challegram.util.text.TextWrapper;
+import org.thunderdog.challegram.widget.PageBlockView;
+
+import me.vkryl.core.lambda.Destroyable;
 
 /** Inline buttons use the same rich-text interaction path as buttons inside a paragraph. */
-public final class PageBlockButtons extends PageBlock {
+public final class PageBlockButtons extends PageBlock implements TextWrapper.TextMediaListener, Destroyable {
   private final TextWrapper[] labels;
   private final int[] widths, positions;
   private final TdApi.PageBlockHorizontalAlignment alignment;
@@ -30,8 +36,28 @@ public final class PageBlockButtons extends PageBlock {
     labels = new TextWrapper[block.buttons.length];
     widths = new int[labels.length]; positions = new int[labels.length]; alignment = block.align;
     for (int i = 0; i < labels.length; i++) {
-      labels[i] = TextWrapper.parseRichText(context, null, new TdApi.RichTextButton(block.buttons[i]), Paints.robotoStyleProvider(15f), TextColorSets.InstantView.NORMAL, null, null);
+      labels[i] = TextWrapper.parseRichText(context, null, new TdApi.RichTextButton(block.buttons[i]), Paints.robotoStyleProvider(15f), TextColorSets.InstantView.NORMAL, null, this);
       labels[i].setViewProvider(currentViews);
+    }
+  }
+
+  @Override
+  public void onInvalidateTextMedia (TextWrapper wrapper, Text text, @Nullable TextMedia specificMedia) {
+    for (View view : currentViews) {
+      if (view instanceof PageBlockView && ((PageBlockView) view).getBlock() == this) {
+        PageBlockView blockView = (PageBlockView) view;
+        if (!text.invalidateMediaContent(blockView.getIconReceiver(), specificMedia)) {
+          // A new layout can change the media-key offsets of the following labels.
+          blockView.invalidateIconsContent(this);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void performDestroy () {
+    for (TextWrapper label : labels) {
+      label.performDestroy();
     }
   }
 
