@@ -77,7 +77,7 @@ class GoogleServicesTest {
     assertTrue(source.contains("hasGoogleServicesClient(usedGoogleServices,variant.applicationId.get())"))
     assertTrue(source.contains("googleServicesValues(customGoogleServices,variant.applicationId.get())"))
     assertTrue(source.contains("valfirebaseEnabled=!stage8Synthetic&&"))
-    assertTrue(source.contains("variant.buildConfigFields.put(\"FIREBASE_MESSAGING_ENABLED\",BuildConfigField(\"boolean\",firebaseEnabled,"))
+    assertTrue(source.contains("checkNotNull(variant.buildConfigFields).put(\"FIREBASE_MESSAGING_ENABLED\",BuildConfigField(\"boolean\",firebaseEnabled,"))
   }
 
   @Test fun validationUsesTheSameExternalFileAndFinalId() {

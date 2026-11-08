@@ -805,7 +805,7 @@ android {
       // Resolve the final ID: Debug and synthetic Checks must not reuse the Release Firebase client.
       val firebaseEnabled = !stage8Synthetic && (customGoogleServices != null || !config.isExperimentalBuild) &&
         hasGoogleServicesClient(usedGoogleServices, variant.applicationId.get())
-      variant.buildConfigFields.put("FIREBASE_MESSAGING_ENABLED", BuildConfigField("boolean", firebaseEnabled, "Final variant Firebase client"))
+      checkNotNull(variant.buildConfigFields).put("FIREBASE_MESSAGING_ENABLED", BuildConfigField("boolean", firebaseEnabled, "Final variant Firebase client"))
       if (firebaseEnabled && customGoogleServices != null) {
         googleServicesValues(customGoogleServices, variant.applicationId.get()).forEach { (name, value) ->
           variant.resValues.put(variant.makeResValueKey("string", name), ResValue(value, "Final variant Firebase client"))
